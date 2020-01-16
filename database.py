@@ -1,6 +1,4 @@
-# database.py
-
-import psycopg2
+import falcon, psycopg2
 
 
 class database:
@@ -37,8 +35,16 @@ class database:
         self.curr.execute(query)
         self.conn.commit()
 
+    def update(self, query):
+        self.curr.execute(query)
+        self.conn.commit()
+
+    def delete(self, query):
+        self.curr.execute(query)
+        self.conn.commit()
+
     def __del__(self):
         self.curr.close()
         self.conn.close()
 
-
+# class Authentication:

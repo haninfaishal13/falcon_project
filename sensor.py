@@ -62,3 +62,30 @@ class Search_sensor:
             }
         resp.body = json.dumps(results, indent=2)
 
+class Delete_sensor:
+    def on_post(self, req, resp):
+        db = database()
+        column = ('Name','Location','Id Hardware','Id User',)
+        results = []
+        params = req.params
+        verify_params = True
+
+        if 'id' not in params:
+            verify_params = False
+
+        if verify_params is True:
+            check = db.check("select * from sensor where id_sensor = '%s'" % (params['id']))
+            if check is True:
+                db.delete("delete from sensor where id_sensor = '%s'" % params['id'])
+                query = db.select("select name, value from sensor")
+                for row in query:
+                    results.append(dict(zip(column, row)))
+            elif check is False:
+                results = {
+                    'error': 'Sensor not found'
+                }
+        if verify_params is False:
+            results = {
+                'No Content': 'There is no Sensor with id %s' % params['id']
+            }
+        resp.body = json.dumps(results, indent=2)
