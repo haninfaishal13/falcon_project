@@ -1,91 +1,110 @@
-import json
+import falcon, json
 from database import database
 
-class View_sensor:
+class Sensor:
     def on_get(self, req, resp):
         db = database()
-        column = ('Name', 'Unit')
+        column = ('Name', 'Unit', 'Id Hardware', 'Id Node')
         results = []
-
-        query = db.selet("select name, unit from sensor")
+        query = db.select("select name, unit from sensor")
         for row in query:
             results.append(dict(zip(column, row)))
-
-class Add_sensor:
+        resp.body = json.dumps(results)
     def on_post(self, req, resp):
         db = database()
-        column = ('Id Sensor', 'Name', 'Unit', 'Id Hardware', 'Id Node')
-        results = []
-        params = req.params
-        verify_params = True
-
-        if 'name' not in params:
-            verify_params = False
-        if 'unit' not in params:
-            verify_params = False
-        if 'id_hardware' not in params:
-            verify_params = False
-        if 'id_node' not in params:
-            verify_params = False
-
-        if verify_params is True:
-            db.insert("insert into sensor (name, unit, id_hardware, id_node) values ('%s','%s','%s','%s')" %
-                      (params['name'], params['unit'], params['id_hardware'], params['id_node']))
-            query = db.select("select * from sensor "
-                              "where name = '%s' and unit = '%s' and id_hardware = '%s' and id_node = '%s'" %
-                              (params['name'], params['unit'], params['id_hardware'], params['id_node']))
-            for row in column:
-                results.append(dict(zip(column, row)))
-
+        type = "sensor"
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
         else:
-            result = {
-                'status': 'fail',
-                'message': 'Need name, node, id hardware and id node parameter'
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+
+        required = {'Sensor Name', 'Sensor Unit', 'Id Hardware', 'Id Node'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        sensor_name = params['Sensor Name']
+        sensor_value = params['Sensor Unit']
+        id_hardware = params['Id Hardware']
+        id_node = params['Id Node']
+
+        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = '%s'"
+                            % (id_hardware, type))
+        node_check = db.check("select id_node from node where id_node = '%s'" % id_node)
+        if hw_check and node_check:
+            db.commit("insert into sensor (name, unit, id_hardware, id_node) values ('%s', '%s', '%s', '%s')" %
+                      (sensor_name, sensor_value, id_hardware, id_node))
+
+            results = {
+                'Message': 'Success'
+            }
+            resp.body = json.dumps(results)
+        else:
+            if not hw_check and not node_check:
+                raise falcon.HTTPBadRequest('Id Hardware and Node not present: {}'.format((id_hardware, id_node)))
+            elif not hw_check:
+                raise falcon.HTTPBadRequest('Id Hardware not present or not valid: {}'.format(id_hardware))
+            elif not node_check:
+                raise falcon.HTTPBadRequest('Id Node not present: {}'.format(id_node))
+    def on_put(self, req, resp, sensor_id):
+        db = database()
+        global results
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+
+        required = {'Sensor Name', 'Sensor Unit'}
+        missing = required - set(params.keys())
+        if 'Sensor Name' in missing and 'Sensor Unit' in missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        elif 'Sensor Name' not in missing and 'Sensor Unit' not in missing:
+            db.commit("update sensor set name = '%s', unit = '%s' where id_sensor = '%s'"
+                      % (params['Sensor Name'], params['Sensor Unit'], sensor_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Sensor Name' not in missing:
+            db.commit("update sensor set name = '%s' where id_sensor = '%s'" % (params['Sensor Name'], sensor_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Sensor Unit' not in missing:
+            db.commit("update sensor set unit = '%s' where id_sensor = '%s'" % (params['Sensor Unit'], sensor_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         resp.body = json.dumps(results)
-
-class Search_sensor:
-    def on_get(self, req, resp, sen_name):
-        db= database()
-        column = ('Name', 'Unit')
-        results = []
-
-        check = db.check("select * from sensor where lower(name) = lower('%s')" % sen_name)
-        if check is True:
-            query = db.select(
-                "select name, unit from sensor where lower(name) = lower('%s')" % sen_name)
-            for row in query:
-                results.append(dict(zip(column, row)))
-        elif check is False:
-            results = {
-                'No Content': 'There is no Sensor name %s' % sen_name
-            }
-        resp.body = json.dumps(results, indent=2)
-
-class Delete_sensor:
-    def on_post(self, req, resp):
+    def on_delete(self, req, resp):
         db = database()
-        column = ('Name','Location','Id Hardware','Id User',)
-        results = []
-        params = req.params
-        verify_params = True
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        if 'id' not in params:
-            verify_params = False
+        required = {'Id Sensor'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
 
-        if verify_params is True:
-            check = db.check("select * from sensor where id_sensor = '%s'" % (params['id']))
-            if check is True:
-                db.delete("delete from sensor where id_sensor = '%s'" % params['id'])
-                query = db.select("select name, value from sensor")
-                for row in query:
-                    results.append(dict(zip(column, row)))
-            elif check is False:
-                results = {
-                    'error': 'Sensor not found'
-                }
-        if verify_params is False:
+        id_sensor = params['Id Sensor']
+        checking = db.check("select * from sensor where id_sensor = '%s'" % id_sensor)
+        if checking:
+            db.commit("delete from sensor where id_sensor = '%s'" % id_sensor)
             results = {
-                'No Content': 'There is no Sensor with id %s' % params['id']
+                'Messages': 'Deleted Id {} from Sensor'.format(id_sensor)
             }
-        resp.body = json.dumps(results, indent=2)
+            resp.body = json.dumps(results)
+        else:
+            raise falcon.HTTPBadRequest('Sensor Id not found: {}'.format(id_sensor))

@@ -1,18 +1,28 @@
-import json
+import falcon, json
 from database import database
 
-class Add_channel:
+class Channel:
+
     def on_post(self, req, resp):
         db = database()
-        params = req.params
-        verify_params = True
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        if 'value' not in params:
-            verify_params = False
-        if 'id_sensor' not in params:
-            verify_params = False
+        required = {'Channel Value', 'Id Sensor'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
 
-        if verify_params is True:
-            db.insert("insert into channel (value, id_sensor) values ('%s', '%s')" %
-                      (params['value'], params['id_sensor']))
-        
+        ch_value = params['Channel Value']
+        id_sensor = params['Id Sensor']
+        db.commit("insert into channel (value, id_sensor) values ('%s', '%s')" % (ch_value, id_sensor))
+        results = {
+            'Messages': 'Success'
+        }
+        resp.body = json.dumps(results)

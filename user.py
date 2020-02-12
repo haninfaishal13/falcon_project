@@ -1,117 +1,100 @@
 import falcon, json
 from database import database
 
-
-class Add_user:
-    def on_post(self, req, resp):
-        db = database()
-        results = []
-        column = ('Id User', 'Name', 'Password')
-        params = req.params  # ?
-        verify_params = True
-
-        if 'name' not in params:
-            verify_params = False
-        if 'password' not in params:
-            verify_params = False
-
-        if verify_params is True:
-            check = db.check("select * from user_person where lower(username) = lower('%s') and password = '%s'" %
-                             (params['name'], params['password']))
-            if check is False:
-                db.insert("insert into user_person (username, password) values ('%s', '%s')" %
-                          (params['name'], params['password']))
-                query = db.select("select * from user_person where lower(username) = lower('%s') and password = '%s'"
-                                  % (params['name'], params['password']))
-                for row in query:
-                    results.append(dict(zip(column, row)))
-            elif check is True:
-                results = {
-                    'message': 'Username is already exist'
-                }
-        elif verify_params is False:
-            results = {
-                'status': 'fail',
-                'message': 'Need name and password parameter'
-            }
-        resp.body = json.dumps(results)
-
-
-class View_user:
+class User:
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Password')
         results = []
         query = db.select("select username, password from user_person")
         for row in query:
-            results.append(dict(column, row))
+            results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
-
-
-class Search_user:
-    def on_get(self, req, resp, username):
-        db = database()
-        column = ('Name', 'Password')
-        results = []
-        check = db.check("select * from user_person where lower(username) = lower('%s')" % username)
-        if check is True:
-            query = db.select(
-                "select username, password from user_person where lower(username) = lower('%s')" % username)
-            for row in query:
-                results.append(dict(zip(column, row)))
-        elif check is False:
-            results = {
-                'No Content': 'There is no username %s' % username
-            }
-        resp.body = json.dumps(results, indent=2)
-
-class Delete_user:
     def on_post(self, req, resp):
         db = database()
-        results = []
-        column = ('Name', 'Password')
-        params = req.params
-        verify_params = True
-        if 'id' not in params:
-            verify_params = False
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        if verify_params is True:
-            check = db.check("select * from user_person where id_user = '%s'" % (params['id']))
-            if check is True:
-                db.delete("delete from user_person where id_user = '%s'" % params['id'])
-                query = db.select("select username, password from user_person")
-                for row in query:
-                    results.append(dict(zip(column, row)))
-            elif check is False:
-                results = {
-                    'error': 'username not found'
-                }
-        if verify_params is False:
+        required = {'Username', 'Password'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        username = params['Username']
+        password = params['Password']
+
+        checking = db.check("select * from user_person where username = '%s'" % username)
+        if checking:
+            raise falcon.HTTPBadRequest('User already exist: {}'.format(username))
+        else:
+            db.commit("insert into user_person (username, password) values ('%s', '%s')" % (username, password))
             results = {
-                'No Content': 'There is no user with id %s' % params['id']
+                'Message': 'Success'
             }
-
-        resp.body = json.dumps(results, indent = 2)
-
-"""
-class Edit_user:
-    def on_post(self, req, resp):
+            resp.body = json.dumps(results)
+    def on_delete(self, req, resp):
         db = database()
-        params = req.params
-        verify_params = True
-        if 'name' not in params:
-            verify_params = False
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        if verify_params is True:
-            check = db.check("select * from user_person where lower(username) = lower('%s')" % (params['name']))
-            if check is True:
-                db.update("update from user_person where username = '%s'" % params['name'])
-            elif check is False:
-                results = {
-                    'error': 'username not found'
-                }
-        if verify_params is False:
+        required = {'Id User'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        id_user = params['Id User']
+        checking = db.check("select * from user_person where id_user = '%s'" % id_user)
+        if checking:
+            db.commit("delete from user_person where id_user = '%d'" % id_user)
             results = {
-                'No Content': 'There is no username %s' % params['name']
+                'Message': 'Delete process Success'
             }
-"""
+            resp.body = json.dumps(results)
+        else:
+            raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
+    def on_put(self, req, resp, id_user):
+        global results
+        db = database()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'Username', 'Password'}
+        missing = required - set(params.keys())
+
+        if 'Username' in missing and 'Password' in missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        elif 'Username' not in missing and 'Password' not in missing:
+            db.commit("update user_person set username = '%s', password = '%s' where id_user = '%s'" %
+                      (params['Username'], params['Password'], id_user))
+            results = {
+                'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+
+        elif 'Password' not in missing:
+            db.commit("update user_person set password = '%s' where id_user = '%s'" % (params['Password'], id_user))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
+            }
+
+        elif 'Username' not in missing:
+            db.commit("update user_person set username = '%s' where id_user = '%s'" % (params['Username'], id_user))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
+            }
+
+        resp.body = json.dumps(results)

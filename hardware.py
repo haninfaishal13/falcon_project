@@ -1,47 +1,7 @@
-import json
+import falcon, json
 from database import database
 
-
-class Add_hardware:
-    def on_post(self, req, resp):
-        db = database()
-        results = []
-        column = ('Id Hardware', 'Hardware Name', 'Type', 'Description')
-        params = req.params
-        verify_params = True
-
-        if 'name' not in params:
-            verify_params = False
-        if 'type' not in params:
-            verify_params = False
-        if 'description' not in params:
-            verify_params = False
-
-        if verify_params is True:
-            check = db.check("select * from hardware where lower(name) = lower('%s') "
-                             "and lower(type) = lower('%s') and lower(description) = lower('%s')" %
-                             (params['name'], params['type'], params['description']))
-            if check is False:
-                db.insert("insert into hardware (name, type, description) values ('%s', '%s', '%s')" %
-                          (params['name'], params['type'], params['description']))
-                query = db.select("select * from hardware where lower(name) = lower('%s') "
-                                  "and lower(type) = lower('%s') and lower(description) = lower('%s')" %
-                                  (params['name'], params['type'], params['description']))
-                for row in query:
-                    results.append(dict(zip(column, row)))
-            elif check is True:
-                results = {
-                    'message': 'Hardware is already exist'
-                }
-        elif verify_params is False:
-            results = {
-                'status': 'fail',
-                'message': 'Need name, type, and description parameter'
-            }
-        resp.body = json.dumps(results, indent=2)
-
-
-class View_hardware:
+class Hardware:
     def on_get(self, req, resp):
         db = database()
         column = ('Hardware Name', 'Type', 'Description')
@@ -51,99 +11,108 @@ class View_hardware:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
 
-
-class Search_hardware:
-    def on_get(self, req, resp, hw_id):
-        db = database()
-        column = ('Hardware Name', 'Type', 'Description')
-        results = []
-
-        checking = db.check("select * from hardware where id_hardware = '%s'" % hw_id)
-        if checking is True:
-            query = db.select("select name, type, description from hardware where id_hardware = '%s'" % hw_id)
-            for row in query:
-                results.append(dict(zip(column, row)))
-        elif checking is False:
-            results = {
-                'No Content': 'There is no Hardware id_hardware %s' % hw_id
-            }
-        resp.body = json.dumps(results, indent=2)
-
-
-class Delete_hardware:
     def on_post(self, req, resp):
         db = database()
-        column = ('Hardware Name', 'Type', 'Description')
-        results = []
-        params = req.params
-        verify_params = True
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        if 'id' not in params:
-            verify_params = False
-        # if 'name' not in params:
-        #     verify_params = False
-        # if 'type' not in params:
-        #     verify_params = False
-        # if 'description' not in params:
-        #     verify_params = False
+        required = {'Hardware Name', 'Type', 'Description'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        hwname = params['Hardware Name']
+        type = params['Type']
+        desc = params['Description']
+        db.commit("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (hwname, type, desc))
+        results = {
+            'Message': 'Success'
+        }
 
-        if verify_params is True:
-            # check = db.check("select * from hardware where lower(name) = lower('%s') "
-            #                  "and lower(type) = lower('%s') and lower(description) = lower('%s')" %
-            #                  (params['name'], params['type'], params['description']))
-            check = db.check("select * from hardware where id_hardware = '%s'" % params['id'])
-            if check is True:
-                # db.delete("delete from hardware where lower(name) = lower('%s') "
-                #           "and lower(type) = lower('%s') and lower(description) = lower('%s')" %
-                #           (params['name'], params['type'], params['description']))
-                db.delete("delete from hardware where id_hardware'%s'" % params['id'])
-                query = db.select("select name, type, description from hardware")
-                for row in query:
-                    results.append(dict(zip(column, row)))
-            elif check is False:
-                results = {
-                    'error': 'hardware not found'
-                }
-        if verify_params is False:
-            results = {
-                'No Content': 'There is no Hardware name %s' % params['name']
-            }
-        resp.body = json.dumps(results, indent=2)
+        resp.body = json.dumps(results)
 
-
-class Edit_hardware:
-    def on_post(self, req, resp, hw_id):
+    def on_put(self, req, resp, hw_id):
+        global results
         db = database()
-        results = []
-        column = ('Hardware Name', 'Type', 'Description')
-        params = req.params
-        type_params = True
-        desc_params = True
-
-        if 'type' not in params:
-            type_params = False
-        if 'description' not in params:
-            desc_params = False
-
-        check = db.check("select * from hardware where id_hardware = '%s'" % hw_id)
-
-        if check is True:
-            if type_params is True and desc_params is True:
-                db.update("update hardware set type = '%s' and description = '%s'" %
-                          (params['type'], params['description']))
-            elif type_params is True and desc_params is False:
-                db.update("update hardware set type = '%s'" % params['type'])
-            elif type_params is False and desc_params is True:
-                db.update("update hardware set description = '%s'" % params['description'])
-            elif type_params is False and desc_params is False:
-                results = {
-                    'error': 'need type or description for edit'
-                }
-            query = db.select("select name, type, description")
-            for row in query:
-                results.append(dict(zip(column, row)))
-        elif check is False:
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'Name', 'Type', 'Description'}
+        missing = required - set(params.keys())
+        if 'Name' in missing and 'Type' in missing and 'Description' in missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        elif 'Name' not in missing and 'Type' not in missing and 'Description' not in missing:
+            db.commit("update hardware set name = '%s', type = '%s', description = '%s' where id_hardware = '%s'"
+                      % (params['Name'], params['Type'], params['Description'], hw_id))
             results = {
-                'No Content': 'There is no name %s' % hw_id
+                'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
-        resp.body = json.dumps(results, indent = 2)
+        elif 'Name' in missing and 'Type' in missing:
+            db.commit(
+                "update hardware set description = '%s' where id_hardware = '%s'" % (params['Description'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Name' in missing and 'Description' in missing:
+            db.commit("update hardware set type = '%s' where id_user = '%s'" % (params['Type'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Type' in missing and 'Description' in missing:
+            db.commit("update hardware set type = '%s' where id_hardware = '%s'" % (params['Type'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Type' in missing:
+            db.commit("update hardware set name = '%s', description = '%s' where id_hardware = '%s'"
+                      % (params['Name'], params['Description'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Name' in missing:
+            db.commit("update hardware set type = '%s' and set description = '%s' where id_hardware = '%s'"
+                      % (params['Type'], params['Description'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        elif 'Description' in missing:
+            db.commit("update hardware set name = '%s' and set type = '%s' where id_hardware = '%s'"
+                      % (params['Name'], params['Type'], hw_id))
+            results = {
+                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+            }
+        resp.body = json.dumps(results)
+    def on_delete(self, req, resp):
+        db = database()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'Id Hardware'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        id_hardware = params['Id Hardware']
+        checking = db.check("select * from hardware where id_hardware = '%s'" % id_hardware)
+        if checking:
+            db.commit("delete from hardware where id_hardware = '%s'" % id_hardware)
+            results = {
+                'Message': 'Delete process Success'
+            }
+            resp.body = json.dumps(results)
+        else:
+            raise falcon.HTTPBadRequest('Hardware Id is not exist: {}'.format(id_hardware))

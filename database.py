@@ -31,15 +31,7 @@ class database:
 
         return curr.fetchall()
 
-    def insert(self, query):
-        self.curr.execute(query)
-        self.conn.commit()
-
-    def update(self, query):
-        self.curr.execute(query)
-        self.conn.commit()
-
-    def delete(self, query):
+    def commit(self, query):
         self.curr.execute(query)
         self.conn.commit()
 
