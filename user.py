@@ -2,6 +2,7 @@ import falcon, json
 from database import database
 
 class User:
+
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Password')
@@ -10,6 +11,7 @@ class User:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
+
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -37,6 +39,7 @@ class User:
                 'Message': 'Success'
             }
             resp.body = json.dumps(results)
+
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -62,6 +65,7 @@ class User:
             resp.body = json.dumps(results)
         else:
             raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
+
     def on_put(self, req, resp, id_user):
         global results
         db = database()
@@ -84,17 +88,37 @@ class User:
             results = {
                 'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
-
         elif 'Password' not in missing:
             db.commit("update user_person set password = '%s' where id_user = '%s'" % (params['Password'], id_user))
             results = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
             }
-
         elif 'Username' not in missing:
             db.commit("update user_person set username = '%s' where id_user = '%s'" % (params['Username'], id_user))
             results = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
             }
-
         resp.body = json.dumps(results)
+        
+"""
+class UserNode:
+    def on_get(self, req, resp):
+        db = database()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+
+        required = {'Id User'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        id_user = params['Id User']
+        checking = db.check("select * from user_person where id_user = '%s'" % id_user)
+        if checking:
+            query = db.select("select username.user_person from user_person where id_user = '%s'" % id_user)
+"""

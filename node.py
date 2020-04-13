@@ -10,6 +10,7 @@ class Node:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
+
     def on_post(self, req, resp):
         db = database()
         type = 'node'
@@ -48,6 +49,7 @@ class Node:
                 raise falcon.HTTPBadRequest('Id user not present: {}'.format(id_user))
             elif not hw_check:
                 raise falcon.HTTPBadRequest('Id hardware not present or not valid: {}'.format(id_hardware))
+
     def on_put(self, req, resp, node):
         db = database()
         if req.content_type is None:
@@ -83,6 +85,7 @@ class Node:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
             resp.body = json.dumps(results)
+
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:
