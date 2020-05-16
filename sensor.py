@@ -1,8 +1,8 @@
 import falcon, json
-from database import database
+from database import *
 
 class Sensor:
-
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Unit', 'Id Hardware', 'Id Node')

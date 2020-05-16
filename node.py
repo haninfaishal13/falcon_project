@@ -1,7 +1,8 @@
 import falcon, json
-from database import database
+from database import *
 
 class Node:
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Location', 'Id Hardware', 'Id User')

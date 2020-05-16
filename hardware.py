@@ -1,7 +1,8 @@
 import falcon, json
-from database import database
+from database import *
 
 class Hardware:
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Hardware Name', 'Type', 'Description')

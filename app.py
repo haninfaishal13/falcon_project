@@ -1,5 +1,6 @@
 import falcon
 
+from database import *
 from user import *
 from hardware import *
 from node import *
@@ -7,8 +8,8 @@ from sensor import *
 from channel import *
 from waitress import serve
 
-# api = falcon.API()
 api = falcon.API()
+
 api.add_route('/user', User())
 api.add_route('/hardware', Hardware())
 api.add_route('/node', Node())
