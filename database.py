@@ -42,6 +42,7 @@ class database:
 user_account = {
     'Username':'Password'
 }
+
 class Authorize:
     def __init__(self):
         pass

@@ -2,6 +2,7 @@ import falcon, json
 from database import *
 
 class Node:
+
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
@@ -12,6 +13,7 @@ class Node:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
 
+    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         type = 'node'
@@ -51,6 +53,7 @@ class Node:
             elif not hw_check:
                 raise falcon.HTTPBadRequest('Id hardware not present or not valid: {}'.format(id_hardware))
 
+    @falcon.before(Authorize())
     def on_put(self, req, resp, node):
         db = database()
         if req.content_type is None:
@@ -87,6 +90,7 @@ class Node:
             }
             resp.body = json.dumps(results)
 
+    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

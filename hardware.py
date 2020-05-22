@@ -12,6 +12,7 @@ class Hardware:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
 
+    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -37,6 +38,7 @@ class Hardware:
 
         resp.body = json.dumps(results)
 
+    @falcon.before(Authorize())
     def on_put(self, req, resp, hw_id):
         global results
         db = database()
@@ -93,6 +95,8 @@ class Hardware:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         resp.body = json.dumps(results)
+
+    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

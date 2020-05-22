@@ -11,6 +11,7 @@ class User:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
 
+    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -39,6 +40,7 @@ class User:
             }
             resp.body = json.dumps(results)
 
+    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -65,6 +67,7 @@ class User:
         else:
             raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
 
+    @falcon.before(Authorize())
     def on_put(self, req, resp, id_user):
         global results
         db = database()
