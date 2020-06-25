@@ -11,6 +11,7 @@ class Sensor:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
@@ -52,6 +53,7 @@ class Sensor:
                 raise falcon.HTTPBadRequest('Id Hardware not present or not valid: {}'.format(id_hardware))
             elif not node_check:
                 raise falcon.HTTPBadRequest('Id Node not present: {}'.format(id_node))
+        db.close()
 
     @falcon.before(Authorize())
     def on_put(self, req, resp, sensor_id):
@@ -87,6 +89,7 @@ class Sensor:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_delete(self, req, resp):
@@ -115,3 +118,4 @@ class Sensor:
             resp.body = json.dumps(results)
         else:
             raise falcon.HTTPBadRequest('Sensor Id not found: {}'.format(id_sensor))
+        db.close()

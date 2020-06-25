@@ -26,3 +26,4 @@ class Channel:
             'Messages': 'Success'
         }
         resp.body = json.dumps(results)
+        db.close()

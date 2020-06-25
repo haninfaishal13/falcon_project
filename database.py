@@ -35,7 +35,7 @@ class database:
         self.curr.execute(query)
         self.conn.commit()
 
-    def __del__(self):
+    def close(self):
         self.curr.close()
         self.conn.close()
 

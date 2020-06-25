@@ -11,6 +11,7 @@ class Hardware:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
+        db.close()
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
@@ -37,6 +38,7 @@ class Hardware:
         }
 
         resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_put(self, req, resp, hw_id):
@@ -95,6 +97,7 @@ class Hardware:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_delete(self, req, resp):
@@ -121,3 +124,4 @@ class Hardware:
             resp.body = json.dumps(results)
         else:
             raise falcon.HTTPBadRequest('Hardware Id is not exist: {}'.format(id_hardware))
+        db.close()

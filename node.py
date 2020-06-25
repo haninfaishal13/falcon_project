@@ -12,6 +12,7 @@ class Node:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
+        db.close()
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
@@ -52,6 +53,7 @@ class Node:
                 raise falcon.HTTPBadRequest('Id user not present: {}'.format(id_user))
             elif not hw_check:
                 raise falcon.HTTPBadRequest('Id hardware not present or not valid: {}'.format(id_hardware))
+        db.close()
 
     @falcon.before(Authorize())
     def on_put(self, req, resp, node):
@@ -89,6 +91,7 @@ class Node:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
             resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_delete(self, req, resp):
@@ -120,3 +123,4 @@ class Node:
 
         elif not checking:
             raise falcon.HTTPBadRequest('Node Id is not exist: {}'.format(id_node))
+        db.close()
