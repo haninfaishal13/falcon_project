@@ -1,15 +1,17 @@
 import falcon, json
 from database import *
+
 class User:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Name', 'Password')
+        column = ('Id User','Name', 'Password')
         results = []
-        query = db.select("select username, password from user_person")
+        query = db.select("select * from user_person")
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
+        db.close()
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
@@ -39,6 +41,7 @@ class User:
                 'Message': 'Success'
             }
             resp.body = json.dumps(results)
+        db.close()
 
     @falcon.before(Authorize())
     def on_delete(self, req, resp):
@@ -66,6 +69,7 @@ class User:
             resp.body = json.dumps(results)
         else:
             raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
+        db.close()
 
     @falcon.before(Authorize())
     def on_put(self, req, resp, id_user):
@@ -101,6 +105,7 @@ class User:
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
             }
         resp.body = json.dumps(results)
+        db.close()
         
 """
 class UserNode:
