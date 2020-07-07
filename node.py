@@ -3,7 +3,6 @@ from database import *
 
 class Node:
 
-    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Location', 'Id Hardware', 'Id User')
@@ -14,7 +13,6 @@ class Node:
         resp.body = json.dumps(results, indent=2)
         db.close()
 
-    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         type = 'node'
@@ -55,7 +53,6 @@ class Node:
                 raise falcon.HTTPBadRequest('Id hardware not present or not valid: {}'.format(id_hardware))
         db.close()
 
-    @falcon.before(Authorize())
     def on_put(self, req, resp, node):
         db = database()
         if req.content_type is None:
@@ -93,7 +90,6 @@ class Node:
             resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

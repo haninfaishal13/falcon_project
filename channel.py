@@ -2,7 +2,6 @@ import falcon, json
 from database import *
 
 class Channel:
-    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:

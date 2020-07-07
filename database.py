@@ -40,12 +40,22 @@ class database:
         self.conn.close()
 
 user_account = {
-    'Username':'Password'
+    'hanin':'hanin123'
 }
 
 class Authorize:
     def __init__(self):
         pass
+
+    def process_request(self, req, resp):
+        auth = req.get_header('Authorization')
+        if auth is None:
+            raise falcon.HTTPUnauthorized('Authentication required', challenges=['Basic'])
+        if not self._is_valid(auth):
+            raise falcon.HTTPUnauthorized('Authentication invalid',  challenges=['Basic'])
+
+    def _is_valid(self, auth):
+        return True
 
     def auth_basic(self, username, password):
         if username in user_account and user_account[username] == password:

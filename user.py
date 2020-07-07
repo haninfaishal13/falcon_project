@@ -2,7 +2,6 @@ import falcon, json
 from database import *
 
 class User:
-    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Id User','Name', 'Password')
@@ -13,7 +12,6 @@ class User:
         resp.body = json.dumps(results, indent=2)
         db.close()
 
-    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -43,7 +41,7 @@ class User:
             resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
+
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -71,7 +69,7 @@ class User:
             raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
         db.close()
 
-    @falcon.before(Authorize())
+
     def on_put(self, req, resp, id_user):
         global results
         db = database()

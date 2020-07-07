@@ -2,7 +2,7 @@ import falcon, json
 from database import *
 
 class Sensor:
-    @falcon.before(Authorize())
+
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Unit', 'Id Hardware', 'Id Node')
@@ -13,7 +13,6 @@ class Sensor:
         resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         type = "sensor"
@@ -55,7 +54,6 @@ class Sensor:
                 raise falcon.HTTPBadRequest('Id Node not present: {}'.format(id_node))
         db.close()
 
-    @falcon.before(Authorize())
     def on_put(self, req, resp, sensor_id):
         db = database()
         global results
@@ -91,7 +89,6 @@ class Sensor:
         resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

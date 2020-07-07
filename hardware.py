@@ -2,7 +2,6 @@ import falcon, json
 from database import *
 
 class Hardware:
-    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Hardware Name', 'Type', 'Description')
@@ -13,7 +12,6 @@ class Hardware:
         resp.body = json.dumps(results, indent=2)
         db.close()
 
-    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         if req.content_type is None:
@@ -40,7 +38,7 @@ class Hardware:
         resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
+
     def on_put(self, req, resp, hw_id):
         global results
         db = database()
@@ -99,7 +97,7 @@ class Hardware:
         resp.body = json.dumps(results)
         db.close()
 
-    @falcon.before(Authorize())
+
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

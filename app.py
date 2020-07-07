@@ -8,8 +8,7 @@ from sensor import *
 from channel import *
 # from waitress import serve
 
-api = falcon.API()
-
+api = falcon.API(middleware=[Authorize()])
 api.add_route('/user', User())
 api.add_route('/hardware', Hardware())
 api.add_route('/node', Node())
