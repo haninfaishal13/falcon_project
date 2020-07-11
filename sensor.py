@@ -3,6 +3,7 @@ from database import *
 
 class Sensor:
 
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Unit', 'Id Hardware', 'Id Node')
@@ -13,6 +14,7 @@ class Sensor:
         resp.body = json.dumps(results)
         db.close()
 
+    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         type = "sensor"
@@ -34,8 +36,8 @@ class Sensor:
         id_hardware = params['Id Hardware']
         id_node = params['Id Node']
 
-        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = '%s'"
-                            % (id_hardware, type))
+        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = lower('Sensor')"
+                            % id_hardware)
         node_check = db.check("select id_node from node where id_node = '%s'" % id_node)
         if hw_check and node_check:
             db.commit("insert into sensor (name, unit, id_hardware, id_node) values ('%s', '%s', '%s', '%s')" %
@@ -54,6 +56,7 @@ class Sensor:
                 raise falcon.HTTPBadRequest('Id Node not present: {}'.format(id_node))
         db.close()
 
+    @falcon.before(Authorize())
     def on_put(self, req, resp, sensor_id):
         db = database()
         global results
@@ -89,6 +92,7 @@ class Sensor:
         resp.body = json.dumps(results)
         db.close()
 
+    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:

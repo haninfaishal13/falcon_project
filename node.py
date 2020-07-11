@@ -3,6 +3,7 @@ from database import *
 
 class Node:
 
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
         column = ('Name', 'Location', 'Id Hardware', 'Id User')
@@ -13,6 +14,7 @@ class Node:
         resp.body = json.dumps(results, indent=2)
         db.close()
 
+    @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
         type = 'node'
@@ -34,8 +36,7 @@ class Node:
         id_hardware = params['Id Hardware']
         id_user = params['Id User']
 
-        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = '%s'"
-                            % (id_hardware, type))
+        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = lower('Microcontroller Unit') or lower(type) = lower('Single-Board Computer')" % id_hardware)
         usr_check = db.check("select id_user from user_person where id_user = '%s'" % id_user)
         if hw_check and usr_check:
             db.commit("insert into node (name, location, id_hardware, id_user) values ('%s', '%s', '%s', '%s')" %
@@ -46,13 +47,14 @@ class Node:
             resp.body = json.dumps(results)
         else:
             if not usr_check and not hw_check:
-                raise falcon.HTTPBadRequest('Id user and hardware not present: {}'.format((id_user, id_hardware)))
+                raise falcon.HTTPBadRequest('Id User and Hardware not present: {}'.format((id_user, id_hardware)))
             elif not usr_check:
-                raise falcon.HTTPBadRequest('Id user not present: {}'.format(id_user))
+                raise falcon.HTTPBadRequest('Id User not present: {}'.format(id_user))
             elif not hw_check:
-                raise falcon.HTTPBadRequest('Id hardware not present or not valid: {}'.format(id_hardware))
+                raise falcon.HTTPBadRequest('Id Hardware not present or not valid: {}'.format(id_hardware))
         db.close()
 
+    @falcon.before(Authorize())
     def on_put(self, req, resp, node):
         db = database()
         if req.content_type is None:
@@ -90,6 +92,7 @@ class Node:
             resp.body = json.dumps(results)
         db.close()
 
+    @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
         if req.content_type is None:
