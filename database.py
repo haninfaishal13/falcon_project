@@ -59,11 +59,12 @@ class Authorize:
 
     def auth_basic(self, username, password):
         if username in user_account and user_account[username] == password:
-            pass
+            print("You have logged in")
         else:
             raise falcon.HTTPUnauthorized('Unauthorized', 'Your access is not allowed')
-
+    
     def __call__(self, req, resp, resource, params):
+        print("Before trigger - class Authorize")
         auth_exp = req.auth.split(' ') if req.auth is not None else (None, None, )
 
         if auth_exp[0] is not None and auth_exp[0].lower() == 'basic':
