@@ -1,18 +1,20 @@
-import falcon, json
+import falcon, json, datetime
+from json import JSONEncoder
 from database import *
 
 class Channel:
-    """
+
+    @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Time', 'Value', 'Id Sensor')
+        column = ('Time','Channel Value', 'Sensor Id')
         results = []
-        query = db.select("select time, value, and id_sensor from channel")
+        query = db.select("select time, value, id_sensor from channel")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results)
+        resp.body = json.dumps(results, indent=2)
         db.close()
-    """
+    
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
@@ -32,7 +34,8 @@ class Channel:
 
         ch_value = params['Value']
         id_sensor = params['Id Sensor']
-        db.commit("insert into channel (value, id_sensor) values ('%s', '%s')" % (ch_value, id_sensor))
+        time = datetime.datetime.now()
+        db.commit("insert into channel (time, value, id_sensor) values ('%s','%s', '%s')" % (str(time), ch_value, id_sensor))
         results = {
             'Messages': 'Success'
         }
