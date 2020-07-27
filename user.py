@@ -6,14 +6,32 @@ class User:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Id User','Name', 'Password')
         results = []
-        query = db.select("select * from user_person")
+        column = ('Id User', 'Name', 'Password')
+        query = db.select("select id_user, username, password from user_person")
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
         db.close()
 
+    @falcon.before(Authorize())
+    def on_get_id(self, req, resp, idu):
+        db = database()
+        results = []
+        column = ('Id User','Name', 'Password', 'Node Name', 'Location')
+        usrcheck = db.check("select * from user_person where id_user = '%s'" % idu) 
+        if usrcheck: #checking id user exist or not
+            query = db.select('''select user_person.id_user, user_person.username, user_person.password,
+                                 case when node.name is null then 'No Record' else node.name end, 
+                                 case when node.location is null then 'No Record' else node.location end 
+                                 from user_person left join node on user_person.id_user = node.id_user 
+                                 where user_person.id_user = %s ''' % idu)
+            for row in query:
+                results.append(dict(zip(column, row)))
+        else:
+                raise falcon.HTTPBadRequest('Id User does not exist: {}'.format(idu))
+        resp.body = json.dumps(results, indent = 2)
+        db.close()
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()

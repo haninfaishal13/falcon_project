@@ -6,12 +6,32 @@ class Sensor:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Name', 'Unit', 'Id Hardware', 'Id Node')
+        column = ('Id Sensor', 'Name', 'Unit', 'Id Hardware', 'Id Node')
         results = []
-        query = db.select("select name, unit from sensor")
+        query = db.select("select * from sensor")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results)
+        resp.body = json.dumps(results, indent = 2)
+        db.close()
+
+#   Sensor-Hardware Scenario
+    @falcon.before(Authorize())
+    def on_get_id(self, req, resp, ids):
+        db = database()
+        results = []
+        scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        if scheck:
+            column = ('Id Node', 'Node Name', 'Location', 'Name', 'Type')
+            query = db.select('''select node.id_node, node.name, node.location, 
+                                 hardware.name, hardware.type from node 
+                                 left join hardware on node.id_hardware = hardware.id_hardware
+                                 where node.id_node = %s ''' % ids)
+            for row in query:
+                results.append(dict(zip(column, row)))
+            resp.body = json.dumps(results, indent = 2)
+        else:
+            raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
+
         db.close()
 
     @falcon.before(Authorize())

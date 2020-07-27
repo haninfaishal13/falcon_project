@@ -6,13 +6,38 @@ class Node:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Name', 'Location', 'Id Hardware', 'Id User')
+        column = ('Id Node', 'Name', 'Location', 'Id Hardware', 'Id User')
         results = []
-        query = db.select("select name, location, id_hardware, id_user from node")
+        query = db.select("select * from node")
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
         db.close()
+
+#   Node-Sensor Scenario
+    @falcon.before(Authorize())
+    def on_get_id(self, req, resp, idn):
+        db = database()
+        results = []
+        ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        if ncheck:
+            column = ('Id Node', 'Node Name', 'Location', 'Sensor Name', )
+            query = db.select('''select node.id_node, node.name, node.location,
+                                 case when sensor.name is null then 'No Record' else sensor.name end, 
+                                 case when sensor.unit is null then 'No Record' else node.location end 
+                                 from node left join sensor on node.id_node = sensor.id_node 
+                                 where node.id_node = %s ''' % idn)
+            for row in query:
+                results.append(dict(zip(column, row)))
+            resp.body = json.dumps(results, indent=2)
+
+        else:
+            raise falcon.HTTPBadRequest('Id Node does not exist: {}'.format(idn))
+        db.close()
+
+#   Node-Hardware Scenario
+
+#   Node-Hardware-Sensor-Scenario
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
@@ -36,21 +61,25 @@ class Node:
         id_hardware = params['Id Hardware']
         id_user = params['Id User']
 
-        hw_check = db.check("select id_hardware from hardware where id_hardware = '%s' and lower(type) = lower('Microcontroller Unit') or lower(type) = lower('Single-Board Computer')" % id_hardware)
-        usr_check = db.check("select id_user from user_person where id_user = '%s'" % id_user)
-        if hw_check and usr_check:
-            db.commit("insert into node (name, location, id_hardware, id_user) values ('%s', '%s', '%s', '%s')" %
-                      (node_name, location, id_hardware, id_user))
-            results = {
-                'Message': 'Success'
-            }
-            resp.body = json.dumps(results)
+        hwcheck = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+        usrcheck = db.check("select id_user from user_person where id_user = '%s'" % id_user)
+        if hwcheck is True and usrcheck is True:
+            hwtcheck = db.check("select id_hardware from hardware where id_hardware = '%s' and (lower(type) = lower('Microcontroller Unit') or lower(type) = lower('Single-Board Computer'))" % id_hardware)
+            if hwtcheck:
+                db.commit("insert into node (name, location, id_hardware, id_user) values ('%s', '%s', '%s', '%s')" %
+                          (node_name, location, id_hardware, id_user))
+                results = {
+                    'Message': 'Success'
+                }
+                resp.body = json.dumps(results)
+            else:
+                raise falcon.HTTPBadRequest('Hardware type not valid, required type: Microcontroller Unit or Single-Board Computer')
         else:
-            if not usr_check and not hw_check:
+            if not usrcheck and not hwcheck:
                 raise falcon.HTTPBadRequest('Id User and Hardware not present: {}'.format((id_user, id_hardware)))
-            elif not usr_check:
+            elif not usrcheck:
                 raise falcon.HTTPBadRequest('Id User not present: {}'.format(id_user))
-            elif not hw_check:
+            elif not hwcheck:
                 raise falcon.HTTPBadRequest('Id Hardware not present or not valid: {}'.format(id_hardware))
         db.close()
 

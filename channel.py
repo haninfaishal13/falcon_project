@@ -1,5 +1,4 @@
 import falcon, json, datetime
-from json import JSONEncoder
 from database import *
 
 class Channel:
@@ -7,12 +6,25 @@ class Channel:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('Time','Channel Value', 'Sensor Id')
         results = []
+        column = ('Time','Channel Value', 'Sensor Id')
         query = db.select("select time, value, id_sensor from channel")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results, indent=2)
+        resp.body = json.dumps(results, indent = 2)
+        db.close()
+
+    @falcon.before(Authorize())
+    def on_get_id(self, req, resp, ids): #Channel sensor
+        db = database()
+        results = []
+        column = ('Time', 'Value', 'Sensor Name', 'Sensor Unit')
+        query = db.select('''select channel.time, channel.value, sensor.name, sensor.unit 
+                             from channel left join sensor on channel.id_sensor = sensor.id_sensor
+                             where channel.id_sensor = %s ''' % ids)
+        for row in query:
+            results.append(dict(zip(column, row)))
+        resp.body = json.dumps(results, indent = 2)
         db.close()
     
     @falcon.before(Authorize())
@@ -35,7 +47,7 @@ class Channel:
         ch_value = params['Value']
         id_sensor = params['Id Sensor']
         time = datetime.datetime.now()
-        db.commit("insert into channel (time, value, id_sensor) values ('%s','%s', '%s')" % (str(time), ch_value, id_sensor))
+        db.commit("insert into channel (time, value, id_sensor) values (%s,%s, %s)" % (str(time), ch_value, id_sensor))
         results = {
             'Messages': 'Success'
         }
