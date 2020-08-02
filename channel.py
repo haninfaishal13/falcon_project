@@ -46,8 +46,8 @@ class Channel:
 
         ch_value = params['Value']
         id_sensor = params['Id Sensor']
-        time = datetime.datetime.now()
-        db.commit("insert into channel (time, value, id_sensor) values (%s,%s, %s)" % (str(time), ch_value, id_sensor))
+        time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f %Z")
+        db.commit("insert into channel (time, value, id_sensor) values ('%s',%s,%s)" % (str(time), ch_value, id_sensor))
         results = {
             'Messages': 'Success'
         }
