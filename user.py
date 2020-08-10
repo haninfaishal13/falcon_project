@@ -91,9 +91,11 @@ class User:
         db.close()
 
     @falcon.before(Authorize())
-    def on_put(self, req, resp, id_user):
+    def on_put_id(self, req, resp, idu):
         global results
         db = database()
+        results = []
+        column = ('Id User', 'Username', 'Password')
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -109,19 +111,23 @@ class User:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         elif 'Username' not in missing and 'Password' not in missing:
             db.commit("update user_person set username = '%s', password = '%s' where id_user = '%s'" %
-                      (params['Username'], params['Password'], id_user))
-            results = {
+                      (params['Username'], params['Password'], idu))
+            notif = {
                 'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         elif 'Password' not in missing:
-            db.commit("update user_person set password = '%s' where id_user = '%s'" % (params['Password'], id_user))
-            results = {
+            db.commit("update user_person set password = '%s' where id_user = '%s'" % (params['Password'], idu))
+            notif = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
             }
         elif 'Username' not in missing:
-            db.commit("update user_person set username = '%s' where id_user = '%s'" % (params['Username'], id_user))
-            results = {
+            db.commit("update user_person set username = '%s' where id_user = '%s'" % (params['Username'], idu))
+            notif = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
             }
-        resp.body = json.dumps(results)
+        query = db.select("select * from user_person where id_user = '%s'" % idu)
+        for row in query:
+            results.append(dict(zip(column, row)))
+        output = notif, results
+        resp.body = json.dumps(output)
         db.close()
