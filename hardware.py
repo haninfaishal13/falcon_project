@@ -58,18 +58,23 @@ class Hardware:
         hwname = params['Hardware Name']
         type = params['Type']
         desc = params['Description']
-        db.commit("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (hwname, type, desc))
-        results = {
-            'Message': 'Success'
-        }
+        if 'single-board computer' in type.lower() or 'microcontroller unit' in type.lower() or 'sensor' in type.lower():
+            db.commit("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (hwname, type, desc))
+            results = {
+                'Message': 'Success'
+            }
 
-        resp.body = json.dumps(results)
+            resp.body = json.dumps(results)
+        else:
+            raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         db.close()
 
     @falcon.before(Authorize())
-    def on_put(self, req, resp, hw_id):
+    def on_put_id(self, req, resp, idh):
         global results
         db = database()
+        results = []
+        column = ('Id Hardware', 'Hardware Name', 'Type', 'Description')
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -78,51 +83,67 @@ class Hardware:
             params = json.load(req.bounded_stream)
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-        required = {'Name', 'Type', 'Description'}
+        required = {'Hardware Name', 'Type', 'Description'}
         missing = required - set(params.keys())
-        if 'Name' in missing and 'Type' in missing and 'Description' in missing:
+        if 'Hardware Name' in missing and 'Type' in missing and 'Description' in missing:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-        elif 'Name' not in missing and 'Type' not in missing and 'Description' not in missing:
-            db.commit("update hardware set name = '%s', type = '%s', description = '%s' where id_hardware = '%s'"
-                      % (params['Name'], params['Type'], params['Description'], hw_id))
-            results = {
-                'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
-        elif 'Name' in missing and 'Type' in missing:
+        elif 'Hardware Name' not in missing and 'Type' not in missing and 'Description' not in missing:
+            if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
+                db.commit("update hardware set name = '%s', type = '%s', description = '%s' where id_hardware = '%s'"
+                          % (params['Hardware Name'], params['Type'], params['Description'], idh))
+                notif = {
+                    'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+                }
+            else:
+                raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
+        elif 'Hardware Name' in missing and 'Type' in missing:
             db.commit(
-                "update hardware set description = '%s' where id_hardware = '%s'" % (params['Description'], hw_id))
-            results = {
+                "update hardware set description = '%s' where id_hardware = '%s'" % (params['Description'], idh))
+            notif = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
-        elif 'Name' in missing and 'Description' in missing:
-            db.commit("update hardware set type = '%s' where id_user = '%s'" % (params['Type'], hw_id))
-            results = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
+        elif 'Hardware Name' in missing and 'Description' in missing:
+            if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
+                db.commit("update hardware set type = '%s' where id_user = '%s'" % (params['Type'], idh))
+                notif = {
+                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+                }
+            else:
+                raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         elif 'Type' in missing and 'Description' in missing:
-            db.commit("update hardware set type = '%s' where id_hardware = '%s'" % (params['Type'], hw_id))
-            results = {
+            db.commit("update hardware set name = '%s' where id_hardware = '%s'" % (params['Hardware Name'], idh))
+            notif = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
         elif 'Type' in missing:
             db.commit("update hardware set name = '%s', description = '%s' where id_hardware = '%s'"
-                      % (params['Name'], params['Description'], hw_id))
-            results = {
+                      % (params['Hardware Name'], params['Description'], idh))
+            notif = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
-        elif 'Name' in missing:
-            db.commit("update hardware set type = '%s' and set description = '%s' where id_hardware = '%s'"
-                      % (params['Type'], params['Description'], hw_id))
-            results = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
+        elif 'Hardware Name' in missing:
+            if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
+                db.commit("update hardware set type = '%s' and set description = '%s' where id_hardware = '%s'"
+                          % (params['Type'], params['Description'], idh))
+                notif = {
+                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+                }
+            else:
+                raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         elif 'Description' in missing:
-            db.commit("update hardware set name = '%s' and set type = '%s' where id_hardware = '%s'"
-                      % (params['Name'], params['Type'], hw_id))
-            results = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
-        resp.body = json.dumps(results)
+            if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
+                db.commit("update hardware set name = '%s' and set type = '%s' where id_hardware = '%s'"
+                          % (params['Hardware Name'], params['Type'], idh))
+                notif = {
+                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
+                }
+            else:
+                raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
+        query = db.select("select * from hardware where id_hardware = '%s'" % idh)
+        for row in query:
+            results.append(dict(zip(column, row)))
+        output = notif, results
+        resp.body = json.dumps(output)
         db.close()
 
     @falcon.before(Authorize())
