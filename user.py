@@ -11,7 +11,12 @@ class User:
         query = db.select("select id_user, username, password from user_person")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results, indent=2)
+        output = {
+            'Success' : True,
+            'Message' : 'get user data',
+            'Data' : results
+        }
+        resp.body = json.dumps(output, indent=2)
         db.close()
 
     @falcon.before(Authorize())
@@ -30,11 +35,17 @@ class User:
                 results.append(dict(zip(column, row)))
         else:
                 raise falcon.HTTPBadRequest('Id User does not exist: {}'.format(idu))
-        resp.body = json.dumps(results, indent = 2)
+        output = {
+            'sucess' : True,
+            'message' : 'get user data',
+            'data' : results
+        }
+        resp.body = json.dumps(output, indent = 2)
         db.close()
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
+        key = []
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -50,16 +61,20 @@ class User:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         username = params['Username']
         password = params['Password']
+        key.append(dict(zip(params.keys(), params.values())))
 
         checking = db.check("select * from user_person where username = '%s'" % username)
         if checking:
             raise falcon.HTTPBadRequest('User already exist: {}'.format(username))
         else:
             db.commit("insert into user_person (username, password) values ('%s', '%s')" % (username, password))
-            results = {
-                'Message': 'Success'
-            }
-            resp.body = json.dumps(results)
+            
+        output = {
+            'success' : True,
+            'message' : 'add new user',
+            'data' : key
+        }
+        resp.body = json.dumps(output, indent = 2)
         db.close()
 
     @falcon.before(Authorize())
@@ -82,10 +97,12 @@ class User:
         checking = db.check("select * from user_person where id_user = '%s'" % id_user)
         if checking:
             db.commit("delete from user_person where id_user = '%d'" % id_user)
-            results = {
-                'Message': 'Delete process Success'
+            output = {
+                'success' : True,
+                'message' : 'delete user',
+                'id' : '{}'.format(id_user)
             }
-            resp.body = json.dumps(results)
+            resp.body = json.dumps(output)
         else:
             raise falcon.HTTPBadRequest('User Id is not exist: {}'.format(id_user))
         db.close()
@@ -112,22 +129,17 @@ class User:
         elif 'Username' not in missing and 'Password' not in missing:
             db.commit("update user_person set username = '%s', password = '%s' where id_user = '%s'" %
                       (params['Username'], params['Password'], idu))
-            notif = {
-                'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
         elif 'Password' not in missing:
             db.commit("update user_person set password = '%s' where id_user = '%s'" % (params['Password'], idu))
-            notif = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
-            }
         elif 'Username' not in missing:
             db.commit("update user_person set username = '%s' where id_user = '%s'" % (params['Username'], idu))
-            notif = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.value()))
-            }
         query = db.select("select * from user_person where id_user = '%s'" % idu)
         for row in query:
             results.append(dict(zip(column, row)))
-        output = notif, results
-        resp.body = json.dumps(output)
+        output = {
+            'success' : True,
+            'message' : 'update user data',
+            'data' : results
+        }
+        resp.body = json.dumps(output, indent = 2)
         db.close()
