@@ -35,10 +35,6 @@ class Node:
             raise falcon.HTTPBadRequest('Id Node does not exist: {}'.format(idn))
         db.close()
 
-#   Node-Hardware Scenario
-
-#   Node-Hardware-Sensor-Scenario
-
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
@@ -84,7 +80,7 @@ class Node:
         db.close()
 
     @falcon.before(Authorize())
-    def on_put(self, req, resp, node):
+    def on_put_id(self, req, resp, idn):
         db = database()
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
@@ -102,19 +98,19 @@ class Node:
 
         elif 'Node Name' not in missing and 'Location' not in missing:
             db.commit("update node set name = '%s', location = '%s' where id_node = '%s'"
-                      % (params['Node Name'], params['Location'], node))
+                      % (params['Node Name'], params['Location'], idn))
             results = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
             resp.body = json.dumps(results)
         elif 'Location' not in missing:
-            db.commit("update node set location = '%s' where id_node = '%s'" % (params['Location'], node))
+            db.commit("update node set location = '%s' where id_node = '%s'" % (params['Location'], idn))
             results = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
             resp.body = json.dumps(results)
-        elif 'Name' not in missing:
-            db.commit("update node set name = '%s' where id_node = '%s'" % (params['Node Name'], node))
+        elif 'Node Name' not in missing:
+            db.commit("update node set name = '%s' where id_node = '%s'" % (params['Node Name'], idn))
             results = {
                 'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
             }
