@@ -10,38 +10,95 @@ class Hardware:
         query = db.select("select id_hardware, name, type, description from hardware")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results, indent=2)
+        
+        output = {
+            'success' : True,
+            'message' : 'get hardware data',
+            'data' : results
+        }
+        resp.body = json.dumps(output, indent=2)
         db.close()
+
+    # @falcon.before(Authorize())
+    # def on_get_id(self, req, resp, idh):
+    #     db = database()
+    #     results = []
+    #     idhcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
+    #     if idhcheck:
+    #         hwcheck = db.check("select * from hardware where lower(type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')")
+    #         if hwcheck:
+    #             column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Node Name', 'Node Location')
+    #             query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
+    #                                 "node.name, node.location from hardware, node "
+    #                                 "where hardware.id_hardware = '%s' and lower(hardware.type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')" % idh)
+    #             for row in query:
+    #                 results.append(dict(zip(column, row)))
+    #             output = {
+    #                 'success' : True,
+    #                 'message' : 'get hardware data',
+    #                 'data' : results
+    #             }
+    #             resp.body = json.dumps(output, indent = 2)
+    #         else:
+    #             column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Sensor Name', 'Sensor Unit')
+    #             query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
+    #                 "sensor.name, sensor.unit from hardware, sensor where id_hardware = '%s' and lower(type) = 'sensor'" % idh)
+    #             for row in query:
+    #                 results.append(dict(zip(column, row)))
+    #             output = {
+    #                 'success' : True,
+    #                 'message' : 'get hardware data',
+    #                 'data' : results
+    #             }
+    #             resp.body = json.dumps(output, indent = 2)
+    #     else:
+    #         raise falcon.HTTPBadRequest('Id Hardware does not exist: {}'.format(idh))
+    #     db.close()
 
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, idh):
         db = database()
         results = []
+        column = ('Id Hardware','Hardware Name', 'Type', 'Description')
+        ncolumn = ('Id Node', 'Node Name', 'Location')
+        scolumn = ('Id Sensor', 'Sensor Name', 'Sensor Unit')
         idhcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
         if idhcheck:
-            hwcheck = db.check("select * from hardware where lower(type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')")
+            query = db.select("select * from hardware where id_hardware = '%s'" % idh)
+            for row in query:
+                results.append(dict(zip(column, row)))
+            hwcheck = db.check("select * from hardware where id_hardware = '%s' and (lower(type) = lower('microcontroller unit') or lower(type) = lower('single-board computer'))" % idh)
             if hwcheck:
-                column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Node Name', 'Node Location')
-                query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-                                    "node.name, node.location from hardware, node "
-                                    "where hardware.id_hardware = '%s' and lower(hardware.type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')" % idh)
+                nresults = []
+                query = db.select("select id_node, name, location from node where id_hardware = '%s')" % idh)
                 for row in query:
-                    results.append(dict(zip(column, row)))
+                    nresults.append(dict(zip(column, row)))
+                output = {
+                    'success' : True,
+                    'message' : 'get hardware data',
+                    'hardware' : results,
+                    'node' : nresults
+                }
+                resp.body = json.dumps(output, indent = 2)
             else:
-                column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Sensor Name', 'Sensor Unit')
-                query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-                    "sensor.name, sensor.unit from hardware, sensor where id_hardware = '%s' and lower(type) = 'sensor'" % idh)
+                sresults = []
+                query = db.select("select id_sensor, name, unit from sensor where id_hardware = '%s'" % idh)
                 for row in query:
-                    results.append(dict(zip(column, row)))
+                    sresults.append(dict(zip(column, row)))
+                output = {
+                    'success' : True,
+                    'message' : 'get hardware data',
+                    'hardware' : results,
+                    'sensor' : sresults 
+                }
+                resp.body = json.dumps(output, indent = 2)
         else:
             raise falcon.HTTPBadRequest('Id Hardware does not exist: {}'.format(idh))
-        
-        resp.body = json.dumps(results, indent = 2)
         db.close()
-
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
+        key = []
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -58,13 +115,16 @@ class Hardware:
         hwname = params['Hardware Name']
         type = params['Type']
         desc = params['Description']
+        key.append(dict(zip(params.keys(), params.values())))
         if 'single-board computer' in type.lower() or 'microcontroller unit' in type.lower() or 'sensor' in type.lower():
             db.commit("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (hwname, type, desc))
-            results = {
-                'Message': 'Success'
+            output = {
+                'success' : True,
+                'message' : 'add new hardware',
+                'data' : key
             }
 
-            resp.body = json.dumps(results)
+            resp.body = json.dumps(output, indent = 2)
         else:
             raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         db.close()
@@ -91,59 +151,42 @@ class Hardware:
             if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
                 db.commit("update hardware set name = '%s', type = '%s', description = '%s' where id_hardware = '%s'"
                           % (params['Hardware Name'], params['Type'], params['Description'], idh))
-                notif = {
-                    'Update {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-                }
             else:
                 raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         elif 'Hardware Name' in missing and 'Type' in missing:
             db.commit(
                 "update hardware set description = '%s' where id_hardware = '%s'" % (params['Description'], idh))
-            notif = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
         elif 'Hardware Name' in missing and 'Description' in missing:
             if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
                 db.commit("update hardware set type = '%s' where id_user = '%s'" % (params['Type'], idh))
-                notif = {
-                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-                }
             else:
                 raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         elif 'Type' in missing and 'Description' in missing:
             db.commit("update hardware set name = '%s' where id_hardware = '%s'" % (params['Hardware Name'], idh))
-            notif = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
         elif 'Type' in missing:
             db.commit("update hardware set name = '%s', description = '%s' where id_hardware = '%s'"
                       % (params['Hardware Name'], params['Description'], idh))
-            notif = {
-                'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-            }
         elif 'Hardware Name' in missing:
             if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
                 db.commit("update hardware set type = '%s' and set description = '%s' where id_hardware = '%s'"
                           % (params['Type'], params['Description'], idh))
-                notif = {
-                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-                }
             else:
                 raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         elif 'Description' in missing:
             if 'single-board computer' in params['Type'].lower() or 'microcontroller unit' in params['Type'].lower() or 'sensor' in params['Type'].lower():
                 db.commit("update hardware set name = '%s' and set type = '%s' where id_hardware = '%s'"
                           % (params['Hardware Name'], params['Type'], idh))
-                notif = {
-                    'Updated {}'.format(set(params.keys())): '{}'.format(set(params.values()))
-                }
             else:
                 raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
         query = db.select("select * from hardware where id_hardware = '%s'" % idh)
         for row in query:
             results.append(dict(zip(column, row)))
-        output = notif, results
-        resp.body = json.dumps(output)
+        output = {
+            'success' : True,
+            'message' : 'update hardware data',
+            'data' : results
+        }
+        resp.body = json.dumps(output, indent = 2)
         db.close()
 
     @falcon.before(Authorize())
@@ -165,10 +208,12 @@ class Hardware:
         checking = db.check("select * from hardware where id_hardware = '%s'" % id_hardware)
         if checking:
             db.commit("delete from hardware where id_hardware = '%s'" % id_hardware)
-            results = {
-                'Message': 'Delete process Success'
+            output = {
+                'success' : True,
+                'message': 'delete hardware',
+                'id' : '{}'.format(id_hardware)
             }
-            resp.body = json.dumps(results)
+            resp.body = json.dumps(output, indent = 2)
         else:
             raise falcon.HTTPBadRequest('Hardware Id is not exist: {}'.format(id_hardware))
         db.close()
