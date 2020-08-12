@@ -59,37 +59,35 @@ class Hardware:
     def on_get_id(self, req, resp, idh):
         db = database()
         results = []
-        column = ('Id Hardware','Hardware Name', 'Type', 'Description')
-        ncolumn = ('Id Node', 'Node Name', 'Location')
-        scolumn = ('Id Sensor', 'Sensor Name', 'Sensor Unit')
         idhcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
         if idhcheck:
-            query = db.select("select * from hardware where id_hardware = '%s'" % idh)
-            for row in query:
-                results.append(dict(zip(column, row)))
-            hwcheck = db.check("select * from hardware where id_hardware = '%s' and (lower(type) = lower('microcontroller unit') or lower(type) = lower('single-board computer'))" % idh)
+            hwcheck = db.check("select * from hardware where id_hardware = '%s' "
+                               "and (lower(type) = lower('microcontroller unit') "
+                               "or lower(type) = lower('single-board computer'))" % idh)
             if hwcheck:
-                nresults = []
-                query = db.select("select id_node, name, location from node where id_hardware = '%s')" % idh)
+                column = ('Id Hardware','Hardware Name', 'Type', 'Description', 'Node Name', 'Node Location')
+                query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
+                                  "node.name, node.location from hardware, node where hardware.id_hardware = '%s' "
+                                  "and node.id_hardware = '%s'" % (idh, idh))
                 for row in query:
-                    nresults.append(dict(zip(column, row)))
+                    results.append(dict(zip(column, row)))
                 output = {
                     'success' : True,
                     'message' : 'get hardware data',
-                    'hardware' : results,
-                    'node' : nresults
+                    'data' : results
                 }
                 resp.body = json.dumps(output, indent = 2)
             else:
-                sresults = []
-                query = db.select("select id_sensor, name, unit from sensor where id_hardware = '%s'" % idh)
+                column = ('Id Hardware','Hardware Name', 'Type', 'Description', 'Sensor Name', 'Sensor Unit')
+                query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
+                                  "sensor.name, sensor.unit from hardware, sensor where hardware.id_hardware = '%s' "
+                                  "and sensor.id_hardware = '%s'" % (idh, idh))
                 for row in query:
-                    sresults.append(dict(zip(column, row)))
+                    results.append(dict(zip(column, row)))
                 output = {
                     'success' : True,
                     'message' : 'get hardware data',
-                    'hardware' : results,
-                    'sensor' : sresults 
+                    'data' : results
                 }
                 resp.body = json.dumps(output, indent = 2)
         else:
