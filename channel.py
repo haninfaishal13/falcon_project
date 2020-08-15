@@ -19,12 +19,16 @@ class Channel:
         db = database()
         results = []
         column = ('Time', 'Value', 'Sensor Name', 'Sensor Unit')
-        query = db.select('''select channel.time, channel.value, sensor.name, sensor.unit 
-                             from channel left join sensor on channel.id_sensor = sensor.id_sensor
-                             where channel.id_sensor = %s ''' % ids)
-        for row in query:
-            results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results, indent = 2)
+        scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        if scheck:
+            query = db.select('''select channel.time, channel.value, sensor.name, sensor.unit 
+                                 from channel left join sensor on channel.id_sensor = sensor.id_sensor
+                                 where channel.id_sensor = %s ''' % ids)
+            for row in query:
+                results.append(dict(zip(column, row)))
+            resp.body = json.dumps(results, indent = 2)
+        else:
+            raise falcon.HTTPBadRequest('Channel in this sensor not fount, Id: {}'.format(ids))
         db.close()
     
     @falcon.before(Authorize())

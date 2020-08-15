@@ -31,8 +31,10 @@ class Hardware:
             if hwcheck:
                 column = ('Id Hardware','Hardware Name', 'Type', 'Description', 'Node Name', 'Node Location')
                 query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-                                  "node.name, node.location from hardware, node where hardware.id_hardware = '%s' "
-                                  "and node.id_hardware = '%s'" % (idh, idh))
+                                  "case when node.name is null then 'No Record' else node.name end, "
+                                  "case when node.location is null then 'No Record' else node.location end "
+                                  "from hardware, node where hardware.id_hardware = '%s' and node.id_hardware = '%s'" 
+                                  % (idh, idh))
                 for row in query:
                     results.append(dict(zip(column, row)))
                 output = {
