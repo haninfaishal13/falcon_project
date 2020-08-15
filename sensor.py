@@ -79,7 +79,7 @@ class Sensor:
                 'message' : 'add new sensor',
                 'data' : key
             }
-            resp.body = json.dumps(results)
+            resp.body = json.dumps(output)
         else:
             if not hw_check and not node_check:
                 raise falcon.HTTPBadRequest('Id Hardware and Node not present: {}'.format((id_hardware, id_node)))
