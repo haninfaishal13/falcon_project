@@ -18,43 +18,7 @@ class Hardware:
         }
         resp.body = json.dumps(output, indent=2)
         db.close()
-
-    # @falcon.before(Authorize())
-    # def on_get_id(self, req, resp, idh):
-    #     db = database()
-    #     results = []
-    #     idhcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
-    #     if idhcheck:
-    #         hwcheck = db.check("select * from hardware where lower(type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')")
-    #         if hwcheck:
-    #             column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Node Name', 'Node Location')
-    #             query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-    #                                 "node.name, node.location from hardware, node "
-    #                                 "where hardware.id_hardware = '%s' and lower(hardware.type) = lower('microcontroller unit') or lower(type) = lower('single-board computer')" % idh)
-    #             for row in query:
-    #                 results.append(dict(zip(column, row)))
-    #             output = {
-    #                 'success' : True,
-    #                 'message' : 'get hardware data',
-    #                 'data' : results
-    #             }
-    #             resp.body = json.dumps(output, indent = 2)
-    #         else:
-    #             column = ('Id Hardware', 'Hardware Name', 'Type', 'Description', 'Sensor Name', 'Sensor Unit')
-    #             query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-    #                 "sensor.name, sensor.unit from hardware, sensor where id_hardware = '%s' and lower(type) = 'sensor'" % idh)
-    #             for row in query:
-    #                 results.append(dict(zip(column, row)))
-    #             output = {
-    #                 'success' : True,
-    #                 'message' : 'get hardware data',
-    #                 'data' : results
-    #             }
-    #             resp.body = json.dumps(output, indent = 2)
-    #     else:
-    #         raise falcon.HTTPBadRequest('Id Hardware does not exist: {}'.format(idh))
-    #     db.close()
-
+        
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, idh):
         db = database()

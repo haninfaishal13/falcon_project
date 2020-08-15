@@ -24,13 +24,12 @@ class Node:
     def on_get_id(self, req, resp, idn):
         db = database()
         results = []
-        column = ('Id Node', 'Node Name', 'Location', 'Sensor Name', 'Sensor Unit')
+        column = ('Id Node', 'Node Name', 'Location', 'Hardware Name', 'User')
         ncheck = db.check("select * from node where id_node = '%s'" % idn)
         if ncheck:
-            query = db.select('''select node.id_node, node.name, node.location,
-                                 case when sensor.name is null then 'No Record' else sensor.name end, 
-                                 case when sensor.unit is null then 'No Record' else node.location end 
-                                 from node left join sensor on node.id_node = sensor.id_node 
+            query = db.select('''select node.id_node, node.name, node.location, hardware.name, user_person.username
+                                 from node left join hardware on node.id_hardware = hardware.id_hardware
+                                 left join user_person on node.id_user = user_person.id_user
                                  where node.id_node = %s ''' % idn)
             for row in query:
                 results.append(dict(zip(column, row)))
