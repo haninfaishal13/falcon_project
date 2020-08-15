@@ -33,8 +33,9 @@ class Hardware:
                 query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
                                   "case when node.name is null then 'No Record' else node.name end, "
                                   "case when node.location is null then 'No Record' else node.location end "
-                                  "from hardware, node where hardware.id_hardware = '%s' and node.id_hardware = '%s'" 
-                                  % (idh, idh))
+                                  "from hardware left join node on hardware.id_hardware = node.id_hardware "
+                                  "where hardware.id_hardware = '%s'" 
+                                  % idh)
                 for row in query:
                     results.append(dict(zip(column, row)))
                 output = {
@@ -46,8 +47,11 @@ class Hardware:
             else:
                 column = ('Id Hardware','Hardware Name', 'Type', 'Description', 'Sensor Name', 'Sensor Unit')
                 query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
-                                  "sensor.name, sensor.unit from hardware, sensor where hardware.id_hardware = '%s' "
-                                  "and sensor.id_hardware = '%s'" % (idh, idh))
+                                  "case when sensor.name is null then 'No Record' else sensor.name end, "
+                                  "case when sensor.unit is null then 'No Record' else sensor.unit end "
+                                  "from hardware left join sensor on hardware.id_hardware = sensor.id_hardware "
+                                  "where hardware.id_hardware = '%s'" 
+                                  % idh)
                 for row in query:
                     results.append(dict(zip(column, row)))
                 output = {
