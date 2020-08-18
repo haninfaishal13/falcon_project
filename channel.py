@@ -11,7 +11,12 @@ class Channel:
         query = db.select("select time, value, id_sensor from channel")
         for row in query:
             results.append(dict(zip(column, row)))
-        resp.body = json.dumps(results, indent = 2)
+        output = {
+            'success' : True,
+            'message' : 'get channel data',
+            'data' : results
+        }
+        resp.body = json.dumps(output, indent = 2)
         db.close()
 
     @falcon.before(Authorize())
@@ -26,6 +31,11 @@ class Channel:
                                  where channel.id_sensor = %s ''' % ids)
             for row in query:
                 results.append(dict(zip(column, row)))
+            output = {
+                'success' : True,
+                'message' : 'get channel data',
+                'data' : results
+            }
             resp.body = json.dumps(results, indent = 2)
         else:
             raise falcon.HTTPBadRequest('Channel in this sensor not fount, Id: {}'.format(ids))
