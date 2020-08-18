@@ -36,7 +36,7 @@ class Channel:
                 'message' : 'get channel data',
                 'data' : results
             }
-            resp.body = json.dumps(results, indent = 2)
+            resp.body = json.dumps(output, indent = 2)
         else:
             raise falcon.HTTPBadRequest('Channel in this sensor not fount, Id: {}'.format(ids))
         db.close()
