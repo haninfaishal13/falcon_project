@@ -21,24 +21,38 @@ class User:
 
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, idu):
+#{idu}:
+#1. Query user
+#2. Query channel
         db = database()
-        results = []
-        column = ('Id User','Name', 'Password', 'Node Name', 'Location')
+        uresults = []
+        cresults = []
+        ucolumn = ('Id User','Name', 'Password')
+        ccolumn=('Time', 'Value', 'Sensor Name', 'Sensor Unit')
         usrcheck = db.check("select * from user_person where id_user = '%s'" % idu) 
         if usrcheck: #checking id user exist or not
-            query = db.select('''select user_person.id_user, user_person.username, user_person.password,
-                                 case when node.name is null then 'No Record' else node.name end, 
-                                 case when node.location is null then 'No Record' else node.location end 
-                                 from user_person left join node on user_person.id_user = node.id_user 
-                                 where user_person.id_user = %s ''' % idu)
-            for row in query:
-                results.append(dict(zip(column, row)))
+            # query = db.select('''select user_person.id_user, user_person.username, user_person.password,
+            #                      case when node.name is null then 'No Record' else node.name end, 
+            #                      case when node.location is null then 'No Record' else node.location end 
+            #                      from user_person left join node on user_person.id_user = node.id_user 
+            #                      where user_person.id_user = %s ''' % idu)
+            uquery = db.select("select * from user_person where id_user = '%s'" % idu)
+            cquery = db.select("select channel.time, channel.value, sensor.name, sensor.unit from channel "
+                               "left join sensor on channel.id_sensor = sensor.id_sensor "
+                               "left join node on sensor.id_node = node.id_node "
+                               "left join user_person on node.id_user = user_person.id_user "
+                               "where user_person.id_user = '%s'" % idu)
+            for row in uquery:
+                uresults.append(dict(zip(ucolumn, row)))
+            for row in cquery:
+                cresults.append(dict(zip(ccolumn, row)))
         else:
                 raise falcon.HTTPBadRequest('Id User does not exist: {}'.format(idu))
         output = {
             'sucess' : True,
             'message' : 'get user data',
-            'data' : results
+            'data' : uresults,
+            'channel' : cresults
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()
