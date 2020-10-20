@@ -46,7 +46,11 @@ class Node:
 
     @falcon.before(Authorize())
     def on_post(self, req, resp):
+        auth = Authorize()
         db = database()
+
+        authData = auth.getAuthentication(req.auth.spli(' '))
+        idu = authData[0]
         key = []
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
@@ -64,7 +68,7 @@ class Node:
         node_name = params['Node Name']
         location = params['Location']
         id_hardware = params['Id Hardware']
-        id_user = params['Id User']
+        id_user = idu
 
         key.append(dict(zip(params.keys(), params.values())))
         hwcheck = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)

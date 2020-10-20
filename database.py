@@ -43,6 +43,9 @@ user_account = {
     'hanin':'hanin123'
 }
 
+
+
+
 class Authorize:
     def __init__(self):
         pass
@@ -50,6 +53,8 @@ class Authorize:
     def process_request(self, req, resp):
         auth = req.get_header('Authorization')
         if auth is None:
+            if(req.path == '/home' or req.path == '/login' or req.path == '/signup'):
+                return True
             raise falcon.HTTPUnauthorized('Authentication required', challenges=['Basic'])
         if not self._is_valid(auth):
             raise falcon.HTTPUnauthorized('Authentication invalid',  challenges=['Basic'])
@@ -58,19 +63,56 @@ class Authorize:
         return True
 
     def auth_basic(self, username, password):
-        if username in user_account and user_account[username] == password:
-            print("You have logged in")
+        db = database()
+        checking = db.check("select * from user_person where username = '%s'" % username)
+        if(checking):
+            result = []
+            passwd = []
+            column = ('Username', 'Password')
+            query = db.select("select username, password from user_person where username = '%s'" % username)
+            for row in query:
+                result.append(dict(zip(column, row)))
+            for value in result:
+                passwd.append(value['Password'])
+            decode = base64.b64decode(passwd[0].encode('utf-8')).decode('utf-8')
+            if(password == decode):
+                print('You have logged in')
+
+                return username
+            else:
+                falcon.HTTPUnauthorized('Unauthorized', 'Your access is not allowed')
         else:
             raise falcon.HTTPUnauthorized('Unauthorized', 'Your access is not allowed')
     
     def __call__(self, req, resp, resource, params):
         print("Before trigger - class Authorize")
-        auth_exp = req.auth.split(' ') if req.auth is not None else (None, None, )
+        auth_exp = req.auth.split(' ') 
+        print(auth_exp)
 
-        if auth_exp[0] is not None and auth_exp[0].lower() == 'basic':
+        if auth_exp[0] is not None and auth_exp[0].lower() == 'basic': 
             auth = base64.b64decode(auth_exp[1]).decode('utf-8').split(':')
             username = auth[0]
             password = auth[1]
             self.auth_basic(username, password)
         else:
             raise falcon.HTTPUnauthorized('Not Implemented', 'Your auth method is not right')
+    
+    def getAuthentication(self, authGet):
+        db = database()
+        authExp = authGet
+        auth = base64.b64decode(authExp[1]).decode('utf-8').split(':')
+        username = auth[0]
+
+        checking = db.check("select * from user_person where username = '%s'" % username)
+        if(checking):
+            result = []
+            idu = []
+            column = ('Id User', 'Username', 'Password')
+            query = db.select("select * from user_person where username = '%s'" % username)
+            for row in query:
+                result.append(dict(zip(column, row)))
+            for value in result:
+                idu.append(value['Password'])
+            decode_id = base64.b64decode(idu[0].encode('utf-8')).decode('utf-8')
+
+        return decode_id, username

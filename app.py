@@ -1,6 +1,7 @@
 import falcon
 
 from database import *
+from home import *
 from user import *
 from hardware import *
 from node import *
@@ -11,6 +12,9 @@ from test import *
 # from waitress import serve
 
 api = falcon.API(middleware=[Authorize()])
+api.add_route('/home', Home())
+api.add_route('/signup', Signup())
+api.add_route('/login', Login())
 api.add_route('/user', User())
 api.add_route('/user/{idu}', User(), suffix='id') 
 api.add_route('/hardware', Hardware())

@@ -21,9 +21,6 @@ class User:
 
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, idu):
-#{idu}:
-#1. Query user
-#2. Query channel
         db = database()
         uresults = []
         cresults = []
@@ -31,11 +28,6 @@ class User:
         ccolumn=('Time', 'Value', 'Sensor Name', 'Sensor Unit')
         usrcheck = db.check("select * from user_person where id_user = '%s'" % idu) 
         if usrcheck: #checking id user exist or not
-            # query = db.select('''select user_person.id_user, user_person.username, user_person.password,
-            #                      case when node.name is null then 'No Record' else node.name end, 
-            #                      case when node.location is null then 'No Record' else node.location end 
-            #                      from user_person left join node on user_person.id_user = node.id_user 
-            #                      where user_person.id_user = %s ''' % idu)
             uquery = db.select("select * from user_person where id_user = '%s'" % idu)
             cquery = db.select("select channel.time, channel.value, sensor.name, sensor.unit from channel "
                                "left join sensor on channel.id_sensor = sensor.id_sensor "
@@ -59,7 +51,6 @@ class User:
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
-        key = []
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -75,7 +66,6 @@ class User:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         username = params['Username']
         password = params['Password']
-        key.append(dict(zip(params.keys(), params.values())))
 
         checking = db.check("select * from user_person where username = '%s'" % username)
         if checking:
@@ -86,7 +76,6 @@ class User:
         output = {
             'success' : True,
             'message' : 'add new user',
-            'data' : key
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()
