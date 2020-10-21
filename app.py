@@ -12,9 +12,8 @@ from test import *
 # from waitress import serve
 
 api = falcon.API(middleware=[Authorize()])
-api.add_route('/home', Home())
-api.add_route('/signup', Signup())
-api.add_route('/login', Login())
+api.add_route('/signup', User(), suffix='signup')
+api.add_route('/login', User(), suffix='login')
 api.add_route('/user', User())
 api.add_route('/user/{idu}', User(), suffix='id') 
 api.add_route('/hardware', Hardware())
