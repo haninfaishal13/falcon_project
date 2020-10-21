@@ -49,8 +49,9 @@ class Node:
         auth = Authorize()
         db = database()
 
-        authData = auth.getAuthentication(req.auth.spli(' '))
+        authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
+
         key = []
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
@@ -61,7 +62,7 @@ class Node:
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        required = {'Node Name', 'Location', 'Id Hardware', 'Id User'}
+        required = {'Node Name', 'Location', 'Id Hardware'}
         missing = required - set(params.keys())
         if missing:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
@@ -78,6 +79,12 @@ class Node:
             if hwtcheck:
                 db.commit("insert into node (name, location, id_hardware, id_user) values ('%s', '%s', '%s', '%s')" %
                           (node_name, location, id_hardware, id_user))
+                key = {
+                    'Node Name': node_name,
+                    'Location': location,
+                    'Id Hardware': id_hardware,
+                    'Id User': id_user
+                }
                 output = {
                     'success': True, 
                     'message':'add new node',
@@ -98,6 +105,10 @@ class Node:
     @falcon.before(Authorize())
     def on_put_id(self, req, resp, idn):
         db = database()
+        auth = Authorize()
+        authData = auth.getAuthentication(req.auth.split(' '))
+        idu = authData[0]
+
         results = []
         column = ('Id Node', 'Name', 'Location', 'Id Hardware', 'Id User')
         if req.content_type is None:
@@ -110,6 +121,12 @@ class Node:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
         required = {'Node Name', 'Location'}
         missing = required - set(params.keys())
+
+        query = db.select("select id_user from node where id_node = '%s'" % idn)
+        value = query[0]
+        id_user = value[0]
+        if(id_user != idu):
+            raise falcon.HTTPBadRequest('Unauthorized', 'Cannot edit others users data')
 
         if 'Node Name' in missing and 'Location' in missing:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
@@ -135,6 +152,10 @@ class Node:
     @falcon.before(Authorize())
     def on_delete(self, req, resp):
         db = database()
+        auth = Authorize()
+        authData = auth.getAuthentication(req.auth.split(' '))
+        idu = authData[0]
+
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -150,9 +171,13 @@ class Node:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
 
         id_node = params['Id Node']
-
+        query = db.select("select id_user from node where id_node = '%s'" % id_node)
+        value = query[0]
+        id_user = value[0]
+        if(id_user != idu):
+            raise falcon.HTTPBadRequest('Unauthorized', 'Cannot delete others users data')
+        
         checking = db.check("select * from node where id_node = '%s'" % id_node)
-
         if checking:
             db.commit("delete from node where id_node = '%s'" % id_node)
             output = {
@@ -165,3 +190,4 @@ class Node:
         elif not checking:
             raise falcon.HTTPBadRequest('Node Id is not exist: {}'.format(id_node))
         db.close()
+

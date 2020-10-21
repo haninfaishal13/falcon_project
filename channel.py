@@ -44,6 +44,10 @@ class Channel:
     @falcon.before(Authorize())
     def on_post(self, req, resp):
         db = database()
+        auth = Authorize()
+        authData = auth.getAuthentication(req.auth.split(' '))
+        idu = authData[0]
+
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -60,6 +64,12 @@ class Channel:
 
         ch_value = params['Value']
         id_sensor = params['Id Sensor']
+
+        query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % id_sensor)
+        value = query[0]
+        id_user = value[0]
+        if(id_user != idu):
+            raise falcon.HTTPBadRequest('Unauthorized', 'Cannot send channel to others user data')
         time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f %Z")
         db.commit("insert into channel (time, value, id_sensor) values ('%s',%s,%s)" % (str(time), ch_value, id_sensor))
         results = {

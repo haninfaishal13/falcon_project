@@ -87,7 +87,6 @@ class Authorize:
     def __call__(self, req, resp, resource, params):
         print("Before trigger - class Authorize")
         auth_exp = req.auth.split(' ') 
-        print(auth_exp)
 
         if auth_exp[0] is not None and auth_exp[0].lower() == 'basic': 
             auth = base64.b64decode(auth_exp[1]).decode('utf-8').split(':')
@@ -112,7 +111,7 @@ class Authorize:
             for row in query:
                 result.append(dict(zip(column, row)))
             for value in result:
-                idu.append(value['Password'])
-            decode_id = base64.b64decode(idu[0].encode('utf-8')).decode('utf-8')
+                idu.append(value['Id User'])
+            # decode_id = base64.b64decode(idu[0].encode('utf-8')).decode('utf-8')
 
-        return decode_id, username
+        return idu[0], username

@@ -121,6 +121,7 @@ class Hardware:
                           % (params['Hardware Name'], params['Type'], params['Description'], idh))
             else:
                 raise falcon.HTTPBadRequest('Type must Single-Board Computer, Microcontroller Unit, or Sensor')
+        #Stop kalau mau mensetting update data harus memasukkan semua required
         elif 'Hardware Name' in missing and 'Type' in missing:
             db.commit(
                 "update hardware set description = '%s' where id_hardware = '%s'" % (params['Description'], idh))
