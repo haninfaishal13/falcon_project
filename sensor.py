@@ -22,7 +22,7 @@ class Sensor:
             output = {
                 'success' : True,
                 'message' : 'get sensor data',
-                'data' : results
+                'sensor' : results
             }
         else:
             query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, sensor.activity, 
@@ -33,7 +33,7 @@ class Sensor:
             output = {
                 'success' : True,
                 'message' : 'get your sensor data',
-                'data' : results
+                'sensor' : results
             }
         resp.body = json.dumps(output, indent = 2)
         db.close()
@@ -59,23 +59,61 @@ class Sensor:
 
         sensor = []
         channel = []
-        scolumn = ('id sensor', 'name', 'unit','activity', 'time', 'value')
+        scolumn = ('id_sensor', 'name', 'unit','activity', 'time', 'value')
         ccolumn = ('time', 'value')
         query = db.select("select id_sensor, name, unit, activity from sensor where id_sensor = '%s'" % ids)
         for row in query:
-            sensor.append(dict(zip(column, row)))
+            sensor.append(dict(zip(scolumn, row)))
         query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
         for row in query:
-            channel.append(dict(zip(column, row)))
+            channel.append(dict(zip(ccolumn, row)))
         output = {
             'success' : True,
             'message' : 'get sensor data',
-            'data' : results,
+            'sensor' : sensor,
             'channel':channel
         }
         resp.body = json.dumps(output, indent = 2)
 
         db.close()
+
+    # @falcon.before(Authorize())
+    # def on_get_sensor(self, req, resp, ids):
+    #     db = database()
+    #     auth = Authorize()
+    #     authData = auth.getAuthentication(req.auth.split(' '))
+    #     idu = authData[0]
+    #     isadmin = authData[3]
+
+    #     scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+    #     if not scheck:
+    #         raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
+    #     query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
+    #     value = query[0]
+    #     id_user = value[0]
+    #     if not isadmin:
+    #         if(id_user != idu):
+    #            raise falcon.HTTPForbidden('Forbidden', 'You are not admin') 
+
+    #     sensor = []
+    #     channel = []
+    #     scolumn = ('id sensor', 'name', 'unit','activity', 'time', 'value')
+    #     ccolumn = ('time', 'value')
+    #     query = db.select("select id_sensor, name, unit, activity from sensor where id_sensor = '%s'" % ids)
+    #     for row in query:
+    #         sensor.append(dict(zip(scolumn, row)))
+    #     query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
+    #     for row in query:
+    #         channel.append(dict(zip(ccolumn, row)))
+    #     output = {
+    #         'success' : True,
+    #         'message' : 'get sensor data',
+    #         'sensor' : sensor,
+    #         'channel':channel
+    #     }
+    #     resp.body = json.dumps(output, indent = 2)
+
+    #     db.close()
 
     @falcon.before(Authorize())
     def on_post_add(self, req, resp, idn, type):
@@ -118,7 +156,7 @@ class Sensor:
             output = {
                 'success':True,
                 'message':'add new sensor',
-                'data':key
+                'sensor':key
             }
         elif 'hardware' not in given:
             db.commit("insert into sensor (name, unit, activity, id_node, id_hardware) values ('%s','%s','%s','%s',NULL)" % (name, unit, activity, idn))
@@ -132,7 +170,7 @@ class Sensor:
             output = {
                 'success':True,
                 'message':'add new sensor',
-                'data':key
+                'sensor':key
             }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
@@ -194,7 +232,7 @@ class Sensor:
         output = {
             'success' : True,
             'message' : 'update sensor data',
-            'data' : results
+            'sensor' : results
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()

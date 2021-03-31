@@ -5,16 +5,36 @@ class Hardware:
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
-        column = ('id hardware','name', 'type', 'description')
+        column = ('id_hardware','name', 'type', 'description')
         results = []
-        query = db.select("select id_hardware, name, type, description from hardware")
+        node_result = []
+        sensor_result = []
+        
+        if not req.params:
+            query = db.select("select id_hardware, name, type, description from hardware")
+            node = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit'")
+            sensor = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'sensor'")
+        elif req.params:
+            type = req.params['type']
+            if 'sensor' in type:
+                query = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'sensor'")
+            elif 'node' in type:
+                query = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit'")
+            else:
+                raise falcon.HTTPBadRequest('Bad Request', 'Params not found')
+
         for row in query:
             results.append(dict(zip(column, row)))
+        for row in node:
+            node_result.append(dict(zip(column, row)))
+        for row in sensor:
+            sensor_result.append(dict(zip(column, row)))
         
         output = {
             'success' : True,
             'message' : 'get hardware data',
-            'data' : results
+            'node' : node_result,
+            'sensor' : sensor_result
         }
         resp.body = json.dumps(output, indent=2)
         db.close()
@@ -36,7 +56,7 @@ class Hardware:
                                "and (lower(type) = lower('microcontroller unit') "
                                "or lower(type) = lower('single-board computer'))" % idh)
             if hwcheck:
-                column = ('id hardware','hardware name', 'type', 'description', 'node name', 'node location')
+                column = ('id_hardware','hardware name', 'type', 'description', 'node name', 'node location')
                 query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
                                   "case when node.name is null then 'No Record' else node.name end, "
                                   "case when node.location is null then 'No Record' else node.location end "
@@ -48,11 +68,11 @@ class Hardware:
                 output = {
                     'success' : True,
                     'message' : 'get hardware data',
-                    'data' : results
+                    'hardware' : results
                 }
                 resp.body = json.dumps(output, indent = 2)
             else:
-                column = ('id hardware','name', 'type', 'description', 'sensor name', 'sensor unit')
+                column = ('id_hardware','name', 'type', 'description', 'sensor name', 'sensor unit')
                 query = db.select("select hardware.id_hardware, hardware.name, hardware.type, hardware.description, "
                                   "case when sensor.name is null then 'No Record' else sensor.name end, "
                                   "case when sensor.unit is null then 'No Record' else sensor.unit end "
@@ -64,7 +84,7 @@ class Hardware:
                 output = {
                     'success' : True,
                     'message' : 'get hardware data',
-                    'data' : results
+                    'hardware' : results
                 }
                 resp.body = json.dumps(output, indent = 2)
         else:
@@ -96,7 +116,7 @@ class Hardware:
             output = {
                 'success' : True,
                 'message' : 'add new hardware',
-                'data' : key
+                'hardware' : key
             }
 
             resp.body = json.dumps(output, indent = 2)
@@ -109,7 +129,7 @@ class Hardware:
         global results
         db = database()
         results = []
-        column = ('Id Hardware', 'name', 'type', 'description')
+        column = ('id_hardware', 'name', 'type', 'description')
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
         elif 'form' in req.content_type:
@@ -160,7 +180,7 @@ class Hardware:
         output = {
             'success' : True,
             'message' : 'update hardware data',
-            'data' : results
+            'hardware' : results
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()

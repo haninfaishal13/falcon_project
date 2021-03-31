@@ -19,20 +19,20 @@ class Channel:
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        required = {'value', 'id sensor'}
+        required = {'value', 'id_sensor'}
         missing = required - set(params.keys())
         if missing:
             raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
 
         ch_value = params['value']
-        id_sensor = params['id sensor']
+        id_sensor = params['id_sensor']
 
         query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % id_sensor)
         value = query[0]
         id_user = value[0]
         if(id_user != idu):
             raise falcon.HTTPBadRequest('Unauthorized', 'Cannot send channel to others user data')
-        time = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f %Z")
+        time = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S %Z")
         db.commit("insert into channel (time, value, id_sensor) values ('%s',%s,%s)" % (str(time), ch_value, id_sensor))
         results = {
             'Messages': 'Success'

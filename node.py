@@ -11,7 +11,7 @@ class Node:
         idu = authData[0]
         isadmin = authData[3]
 
-        column = ('Id Node', 'Name', 'Location', 'Id Hardware', 'Id User')
+        column = ('id_node', 'name', 'location', 'id_hardware', 'id_user')
         results = []
         if isadmin:
             query = db.select("select * from node")
@@ -20,7 +20,7 @@ class Node:
             output = {
                 'success' : True,
                 'message' : 'get node data',
-                'data' : results
+                'node' : results
             }
             resp.body = json.dumps(output, indent=2)
         else:
@@ -30,12 +30,11 @@ class Node:
             output = {
                 'success' : True,
                 'message' : 'get node data',
-                'data' : results
+                'node' : results
             }
             resp.body = json.dumps(output, indent=2)
         db.close()
 
-#   Node-Sensor Scenario
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, idn):
         db = database()
@@ -54,13 +53,22 @@ class Node:
             if(not isadmin):
                 raise falcon.HTTPForbidden('Forbidden', 'You are not an admin')
 
+        user = []
         node = []
         hardware = []
         sensor = []
-        ncolumn = ('id node', 'name', 'location')
+        ucolumn = ('id_user','name')
+        ncolumn = ('id_node', 'name', 'location', 'username')
         hcolumn = ('name', 'type')
-        scolumn = ('name', 'unit', 'activity')
-        query = db.select("select id_node, name, location from node where id_node = '%s' " % idn)
+        scolumn = ('id_sensor','name', 'unit', 'activity')
+        query = db.select('''select user_person.id_user, user_person.username 
+                             from user_person left join node on user_person.id_user = node.id_user 
+                             where node.id_node = '%s' ''' % idn)
+        for row in query:
+            user.append(dict(zip(ucolumn, row)))
+        query = db.select('''select node.id_node, node.name, node.location, user_person.username 
+                             from node left join user_person on node.id_user = user_person.id_user
+                              where node.id_node = '%s' ''' % idn)
         for row in query:
             node.append(dict(zip(ncolumn, row)))
         query = db.select(''' select hardware.name, hardware.type from hardware 
@@ -68,7 +76,7 @@ class Node:
                               where id_node = '%s' ''' % idn)
         for row in query:
             hardware.append(dict(zip(hcolumn, row)))
-        query = db.select('''select sensor.name, sensor.unit, sensor.activity from sensor
+        query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, sensor.activity from sensor
                              left join node on sensor.id_node = node.id_node 
                              where sensor.id_node = '%s' ''' % idn)
         for row in query:
@@ -77,6 +85,7 @@ class Node:
             'success':True,
             'message':'get data',
             'node':node,
+            'user':user,
             'hardware':hardware,
             'sensor':sensor
         }
@@ -116,15 +125,15 @@ class Node:
             id_hardware = params['id hardware']
             db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', '%s', '%s')" % (node_name, location, id_hardware, id_user))
             key = {
-                'Node Name': node_name,
-                'Location': location,
-                'Id Hardware': id_hardware,
-                'Id User': id_user
+                'name': node_name,
+                'location': location,
+                'id_hardware': id_hardware,
+                'id_user': id_user
             }
             output = {
                 'success': True, 
                 'message':'add new node',
-                'data':key
+                'node':key
             }
 
         elif 'id hardware' not in notgiven:
@@ -138,7 +147,7 @@ class Node:
             output = {
                 'success': True, 
                 'message':'add new node',
-                'data':key
+                'node':key
             }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
@@ -192,7 +201,7 @@ class Node:
         output = {
             'success':True,
             'message':'update node',
-            'data':results
+            'node':results
         }
         resp.body = json.dumps(output, indent = 2)
         

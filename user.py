@@ -1,4 +1,4 @@
-import falcon, json, hashlib
+import falcon, json, hashlib, string, random
 from database import *
 
 class User:
@@ -22,36 +22,35 @@ class User:
         else:
             raise falcon.HTTPUnsupportedMediaType("Unsupported Media", "Supported format: JSON or form")
 
-        required = {'email','password'}
+        required = {'username','password'}
         missing = required - set(params.keys())
         if missing:
             raise falcon.HTTPBadRequest('Bad Request','Missing parameter: {}'.format(missing))
-        email = params['email']
+        username = params['username']
         password = params['password']
-        encode = base64.b64encode(password.encode('utf-8')).decode('utf-8')
+        passHash = hashlib.sha256(password.encode()).hexdigest()
 
-        checking = db.check("select * from user_person where email = '%s'" % email)
+        checking = db.check("select * from user_person where username = '%s'" % username)
         if(checking):
             result = []
             value = []
-            column = ('email', 'password')
-            query = db.select("select email, password from user_person where email = '%s'" % email)
+            column = ('username', 'password')
+            query = db.select("select username, password from user_person where username = '%s'" % username)
             for row in query:
                 result.append(dict(zip(column, row)))
             for member in result:
                 value.append(member['password'])
-            decode = base64.b64decode(value[0].encode('utf-8')).decode('utf-8')
-            if(password == decode):
+            if(value[0] == passHash):
                 output = {
                     'success' : True,
-                    'message' : 'Logged In, Welcome',
+                    'message' : 'Logged In, Welcome'
                 }
                 resp.status = falcon.HTTP_202
                 resp.body = json.dumps(output, indent = 2)
             else:
-                raise falcon.HTTPUnauthorized('Unauthorized','Email or Password is not correct')
+                raise falcon.HTTPUnauthorized('Unauthorized','password not correct')
         else:
-            raise falcon.HTTPUnauthorized('Unauthorized','Email or Password is not correct')
+            raise falcon.HTTPUnauthorized('Unauthorized','Username not found')
         db.close()
 
     def on_get_signup(self, req, resp):
@@ -62,45 +61,6 @@ class User:
         for row in query:
             results.append(dict(zip(column, row)))
         resp.body = json.dumps(results, indent=2)
-        db.close()
-        
-    def on_post_signup(self, req, resp):
-        db = database()
-        auth = Authorize()
-        if req.content_type is None:
-            raise falcon.HTTPBadRequest("Empty request body")
-        elif 'form' in req.content_type:
-            params = req.params
-        elif 'json' in req.content_type:
-            params = json.load(req.bounded_stream)
-        else:
-            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-
-        required = {'username', 'email', 'password'}
-        missing = required - set(params.keys())
-        if missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-        username = params['username']
-        emailAddress = params['email']
-        password = params['password']
-
-        tokenOriginal = username + ' ' + emailAddress + ' ' + password
-        passHash = hashlib.sha256(password.encode()).hexdigest()
-        token = hashlib.sha256(tokenOriginal.encode()).hexdigest()
-
-        checking = db.check("select * from user_person where email = '%s'" % emailAddress)
-        if checking:
-            raise falcon.HTTPBadRequest('Email already used: {}'.format(emailAddress))
-        else:
-            db.commit("insert into user_person (username, email, password, token) values ('%s','%s', '%s', '%s')" % (username, emailAddress, passHash, token))
-            auth.sendEmail(emailAddress, token)
-            
-        output = [{
-            'success' : True,
-            'message' : 'add new user, check email for verification',
-        }]
-        resp.status = falcon.HTTP_201
-        resp.body = json.dumps(output, indent = 2)
         db.close()
 
     def on_get_verification(self, req, resp):
@@ -120,7 +80,6 @@ class User:
         resp.body = json.dumps(output, indent = 2)
         db.close()
 
-
     @falcon.before(Authorize())
     def on_get(self, req, resp):
         db = database()
@@ -138,7 +97,7 @@ class User:
         output = {
             'success' : True,
             'message' : 'get user data',
-            'data' : results
+            'user' : results
         }
         resp.body = json.dumps(output, indent=2)
         db.close()
@@ -186,10 +145,155 @@ class User:
         output = {
             'sucess' : True,
             'message' : 'get user data',
-            'data' : uresults,
+            'user' : uresults,
             'node' : nresults,
             'sensor': sresults,
             'channel' : cresults
+        }
+        resp.body = json.dumps(output, indent = 2)
+        db.close()
+        
+    def on_post_signup(self, req, resp):
+        db = database()
+        auth = Authorize()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+
+        required = {'username', 'email', 'password'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+        username = params['username']
+        emailAddress = params['email']
+        password = params['password']
+
+        tokenOriginal = username + ' ' + emailAddress + ' ' + password
+        passHash = hashlib.sha256(password.encode()).hexdigest()
+        token = hashlib.sha256(tokenOriginal.encode()).hexdigest()
+
+        emailChecking = db.check("select * from user_person where email = '%s'" % emailAddress)
+        usernameChecking = db.select("select * from user_person where username = '%s'" % username)
+        if emailChecking or usernameChecking:
+            raise falcon.HTTPBadRequest('Bad_Request','Email or Username already used')
+        else:
+            db.commit("insert into user_person (username, email, password, token) values ('%s','%s', '%s', '%s')" % (username, emailAddress, passHash, token))
+            auth.sendEmail(emailAddress, token)
+            
+        output = {
+            'success' : True,
+            'message' : 'add new user, check email for verification',
+        }
+        resp.status = falcon.HTTP_201
+        resp.body = json.dumps(output, indent = 2)
+        db.close()
+
+    def on_post_emailforget(self, req, resp):
+        db = database()
+        auth = Authorize()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'email'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+
+        mail = params['email']
+        token = ''.join(random.choice(string.ascii_uppercase+string.digits) for _ in range(6))
+        tokenHash = hashlib.sha256(token.encode()).hexdigest()
+        checking = db.check("select email from user_person where email = '%s'" % mail)
+        if not checking:
+            raise falcon.HTTPBadRequest('Bad Request','Email not found')
+
+        checkToken = db.check("select token from user_person where token = '%s'" % tokenHash)
+        while checkToken:
+            token = ''.join(random.choice(string.ascii_uppercase+string.digits) for _ in range(6))
+            tokenHash = hashlib.sha256(token.encode()).hexdigest()
+            checkToken = db.check("select token from user_person where token = '%s'" % tokenHash)
+        auth.forgetPasswordMail(mail, token)
+        db.commit("update user_person set token = '%s' where email = '%s'" % (tokenHash, mail))
+
+        output = {
+            'success' : True,
+            'message' : 'send email, check email for change forgotten password'
+        }
+        resp.body = json.dumps(output, indent = 2)
+        db.close()
+
+    def on_post_tokenforget(self, req, resp):
+        db = database()
+        # auth = Authorize()
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'token'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+
+        token = params['token']
+        tokenHash = hashlib.sha256(token.encode()).hexdigest()
+
+        checking = db.check("select token from user_person where token = '%s'" % tokenHash)
+        if checking:
+            output = {
+                'success':True,
+                'message':'find token forget password'
+            }
+        else:
+            output = {
+                'success':False,
+                'message':'token not correct'
+            }
+        resp.body = json.dumps(output, indent = 2)
+        db.close()
+
+
+    def on_put_passwordforget(self, req, resp):
+        global results
+        db = database()
+
+        if req.content_type is None:
+            raise falcon.HTTPBadRequest("Empty request body")
+        elif 'form' in req.content_type:
+            params = req.params
+        elif 'json' in req.content_type:
+            params = json.load(req.bounded_stream)
+        else:
+            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
+        required = {'token', 'password'}
+        missing = required - set(params.keys())
+        if missing:
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+
+        token = params['token']
+        password = params['password']
+        tokenHash = hashlib.sha256(token.encode()).hexdigest()
+        passHash = hashlib.sha256(password.encode()).hexdigest()
+        checking = db.check("select token from user_person where token = '%s'" % tokenHash)
+        if not checking:
+            raise falcon.HTTPBadRequest('Bad Request', 'Token not correct')
+
+        db.commit("update user_person set password = '%s' where token = '%s'" % (passHash, tokenHash))
+        output = {
+            'success' : True,
+            'message' : 'password has been reset'
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()
