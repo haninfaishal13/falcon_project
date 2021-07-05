@@ -4,7 +4,7 @@ from database import *
 class Node:
 
     @falcon.before(Authorize())
-    def on_get(self, req, resp):
+    def on_get(self, req, resp): #tambah error node 
         db = database()
         auth = Authorize()
         authData = auth.getAuthentication(req.auth.split(' '))
@@ -18,9 +18,8 @@ class Node:
             for row in query:
                 results.append(dict(zip(column, row)))
             output = {
-                'success' : True,
-                'message' : 'get node data',
-                'node' : results
+                'title' : 'get node',
+                'description' : results
             }
             resp.body = json.dumps(output, indent=2)
         else:
@@ -28,9 +27,8 @@ class Node:
             for row in query:
                 results.append(dict(zip(column, row)))
             output = {
-                'success' : True,
-                'message' : 'get node data',
-                'node' : results
+                'title' : 'get node',
+                'description' : results
             }
             resp.body = json.dumps(output, indent=2)
         db.close()
@@ -43,51 +41,49 @@ class Node:
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
         isadmin = authData[3]
-
-        ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        try:
+            ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not ncheck:
-            raise falcon.HTTPBadRequest('Id Node does not exist: {}'.format(idn))
+            raise falcon.HTTPNotFound()
 
         id_user = function.nodeItem(idn, 'id_user')
         if(id_user != idu):
             if(not isadmin):
                 raise falcon.HTTPForbidden('Forbidden', 'You are not an admin')
 
-        user = []
         node = []
         hardware = []
         sensor = []
-        ucolumn = ('id_user','name')
-        ncolumn = ('id_node', 'name', 'location', 'username')
+        ncolumn = ('id_node', 'name', 'location', 'id_user','username')
         hcolumn = ('name', 'type')
-        scolumn = ('id_sensor','name', 'unit', 'activity')
-        query = db.select('''select user_person.id_user, user_person.username 
-                             from user_person left join node on user_person.id_user = node.id_user 
-                             where node.id_node = '%s' ''' % idn)
-        for row in query:
-            user.append(dict(zip(ucolumn, row)))
-        query = db.select('''select node.id_node, node.name, node.location, user_person.username 
+        scolumn = ('id_sensor','name', 'unit')
+        nquery = db.select('''select node.id_node, node.name, node.location, user_person.id_user, user_person.username 
                              from node left join user_person on node.id_user = user_person.id_user
                               where node.id_node = '%s' ''' % idn)
-        for row in query:
-            node.append(dict(zip(ncolumn, row)))
-        query = db.select(''' select hardware.name, hardware.type from hardware 
+        hquery = db.select(''' select hardware.name, hardware.type from hardware 
                               left join node on hardware.id_hardware = node.id_hardware 
                               where id_node = '%s' ''' % idn)
-        for row in query:
+        for row in hquery:
             hardware.append(dict(zip(hcolumn, row)))
-        query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, sensor.activity from sensor
+        squery = db.select('''select sensor.id_sensor, sensor.name, sensor.unit from sensor
                              left join node on sensor.id_node = node.id_node 
                              where sensor.id_node = '%s' ''' % idn)
-        for row in query:
+        for row in squery:
             sensor.append(dict(zip(scolumn, row)))
+        key = {
+            'id_node'   : nquery[0][0],
+            'name'      : nquery[0][1],
+            'location'  : nquery[0][2],
+            'id_user'   : nquery[0][3],
+            'username'  : nquery[0][4],
+            'hardware'  : hardware,
+            'sensor'    : sensor
+        }
         output = {
-            'success':True,
-            'message':'get data',
-            'node':node,
-            'user':user,
-            'hardware':hardware,
-            'sensor':sensor
+            'title':'get node data',
+            'description': key
         }
         resp.body = json.dumps(output, indent=2)
             
@@ -115,42 +111,34 @@ class Node:
         missing = required - set(params.keys())
         notgiven = set(params.keys()) - required
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
         
         node_name = params['name']
         location = params['location']
         id_user = idu
-        
-        if 'id hardware' in notgiven:
-            id_hardware = params['id hardware']
+        if 'id_hardware' in notgiven:
+            id_hardware = params['id_hardware']
+            try:
+                checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+            except:
+                raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            if not checking1:
+                raise falcon.HTTPBadRequest('Bad Request', 'Id hardware not found: {}'.format(id_hardware))
+            checking2 = db.check("select type from hardware where id_hardware = '%s' and (lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit')" % id_hardware)
+            if not checking2:
+                raise falcon.HTTPBadRequest('Bad Request', 'Hardware type not match, type should Microcontroller Unit or Single-Board Computer')
             db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', '%s', '%s')" % (node_name, location, id_hardware, id_user))
-            key = {
-                'name': node_name,
-                'location': location,
-                'id_hardware': id_hardware,
-                'id_user': id_user
-            }
-            output = {
-                'success': True, 
-                'message':'add new node',
-                'node':key
-            }
 
         elif 'id hardware' not in notgiven:
             db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', NULL, '%s')" % (node_name, location, id_user))
-            key = {
-                'Node Name': node_name,
-                'Location': location,
-                'Id Hardware': None,
-                'Id User': id_user
-            }
-            output = {
-                'success': True, 
-                'message':'add new node',
-                'node':key
-            }
+        
+        output = {
+            'title': 'add node', 
+            'description':'success add new node'
+        }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
+        
         db.close()
 
     @falcon.before(Authorize())
@@ -173,37 +161,37 @@ class Node:
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
         
-        ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        try: #antisipasi jika input id node tidak sesuai dengan tipe data pada database
+            ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not ncheck:
-            raise falcon.HTTPBadRequest('Id Node does not exist: {}'.format(idn))
+            raise falcon.HTTPNotFound()
 
-        id_user = function.nodeItem(idn, 'id_user')
-        if(id_user != idu):
+        id_user = function.nodeItem(idn, 'id_user') #cek id user pemilik node yang akan diedit
+        if(id_user != idu): #kalau bukan node miliknya dan bukan admin, dapet response error
             if(not isadmin):
-                raise falcon.HTTPForbidden('Forbidden', 'You cannot edit other user\'s data')
+                raise falcon.HTTPForbidden('Forbidden', 'You cannot edit other user\'s node')
 
         required = {'name', 'location'}
         missing = required - set(params.keys())
-
-        if 'name' in missing and 'location' in missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-
-        elif 'name' not in missing and 'location' not in missing:
-            db.commit("update node set name = '%s', location = '%s' where id_node = '%s'"
-                      % (params['name'], params['location'], idn))
-        elif 'location' not in missing:
-            db.commit("update node set location = '%s' where id_node = '%s'" % (params['location'], idn))
-        elif 'name' not in missing:
-            db.commit("update node set name = '%s' where id_node = '%s'" % (params['name'], idn))
-        query = db.select("select * from node where id_node = '%s'" % idn)
-        for row in query:
-            results.append(dict(zip(column,row)))
-        output = {
-            'success':True,
-            'message':'update node',
-            'node':results
-        }
-        resp.body = json.dumps(output, indent = 2)
+        try: #antisipasi jika masukan pada body tidak sesuai dengan tipe data pada database
+            if 'name' in missing and 'location' in missing:
+                raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            elif 'name' not in missing and 'location' not in missing:
+                db.commit("update node set name = '%s', location = '%s' where id_node = '%s'"
+                          % (params['name'], params['location'], idn))
+            elif 'location' not in missing:
+                db.commit("update node set location = '%s' where id_node = '%s'" % (params['location'], idn))
+            elif 'name' not in missing:
+                db.commit("update node set name = '%s' where id_node = '%s'" % (params['name'], idn))
+            output = {
+                'title':'Edit node',
+                'description':'Success edit node'
+            }
+            resp.body = json.dumps(output, indent = 2)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         
         db.close()
 
@@ -216,19 +204,12 @@ class Node:
         idu = authData[0]
         isadmin = authData[3]
 
-        if req.content_type is None:
-            raise falcon.HTTPBadRequest("Empty request body")
-        elif 'form' in req.content_type:
-            params = req.params
-        elif 'json' in req.content_type:
-            params = json.load(req.bounded_stream)
-        else:
-            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-
-        ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        try: #antisipasi input id node tidak sesuai dengan tipe data pada database 
+            ncheck = db.check("select * from node where id_node = '%s'" % idn)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not ncheck:
-            raise falcon.HTTPBadRequest('Id Node does not exist: {}'.format(idn))
-
+            raise falcon.HTTPNotFound()
         id_user = function.nodeItem(idn,'id_user')
         if(id_user != idu):
             raise falcon.HTTPForbidden('Forbidden', 'You cannot delete other user\'s data')
@@ -237,12 +218,11 @@ class Node:
         if checking:
             db.commit("delete from node where id_node = '%s'" % idn)
             output = {
-                'success' : True,
-                'message': 'delete node',
-                'id' : '{}'.format(idn)
+                'title' : 'delete node',
+                'message': 'success delete node, id: {}'.format(idn)
             }
             resp.body = json.dumps(output)
 
         elif not checking:
-            raise falcon.HTTPBadRequest('Node Id is not exist: {}'.format(idn))
+            raise falcon.HTTPNotFound()
         db.close()

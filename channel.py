@@ -22,20 +22,31 @@ class Channel:
         required = {'value', 'id_sensor'}
         missing = required - set(params.keys())
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
 
         ch_value = params['value']
         id_sensor = params['id_sensor']
-
-        query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % id_sensor)
-        value = query[0]
-        id_user = value[0]
+        try:
+            checking = db.check("select id_sensor from sensor where id_sensor = '%s'" % id_sensor)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+        if not checking:
+            print(id_sensor)
+            raise falcon.HTTPBadRequest('Bad Request', 'Id Sensor not found')
+        try: #antisipasi data yang diinput tidak sesuai dengan tipe data pada database
+            query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % id_sensor)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+        id_user = query[0][0]
         if(id_user != idu):
-            raise falcon.HTTPBadRequest('Unauthorized', 'Cannot send channel to others user data')
+            raise falcon.HTTPBadRequest('Unauthorized', 'Cannot send channel to other user\'s data')
         time = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S %Z")
         db.commit("insert into channel (time, value, id_sensor) values ('%s',%s,%s)" % (str(time), ch_value, id_sensor))
         results = {
-            'Messages': 'Success'
+            'title': 'add channel',
+            'description': 'success add channel'
         }
+        resp.status = falcon.HTTP_201
         resp.body = json.dumps(results)
         db.close()
+

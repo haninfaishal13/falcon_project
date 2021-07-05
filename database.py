@@ -48,12 +48,10 @@ class Authorize:
         auth = req.get_header('Authorization')
         if auth is None:
             if(
-                req.path == '/verification' 
-                or req.path == '/login' 
-                or req.path == '/signup'
-                or req.path == '/login/reset-password'
-                or req.path == '/login/token'
-                or req.path == '/login/forget'):
+                req.path == '/user/verification' 
+                or req.path == '/user/login' 
+                or req.path == '/user/signup'
+                or req.path == '/user/forget-password'):
                 return True
             if(req.method == 'OPTIONS'):
                 return True
@@ -66,25 +64,17 @@ class Authorize:
 
     def auth_basic(self, username, password):
         db = database()
-        checking = db.check("select * from user_person where username = '%s'" % username)
+        checking = db.check("select * from user_person where username = '%s'" % username) #cek kesesuaian username
         if(checking):
-            result = []
-            uname = []
-            passwd = []
-            status = []
-            column = ('usrname', 'password', 'status')
             query = db.select("select username, password, status from user_person where username = '%s'" % username)
-            for row in query:
-                result.append(dict(zip(column, row)))
-            for value in result:
-                uname.append(value['usrname'])
-                passwd.append(value['password'])
-                status.append(value['status'])
-            passHash = hashlib.sha256(password.encode()).hexdigest()
-            if(not status[0]):
+            uname = query[0][0]   #ambil kolom username
+            passwd = query[0][1]  #ambil kolom password
+            status = query[0][2]  #ambil kolom status
+            passHash = hashlib.sha256(password.encode()).hexdigest()  #hash password dari auth
+            if(not status):       #cek keaktifan user
                 raise falcon.HTTPForbidden('Forbidden', 'Your account is inactive. Check your email for activation')
-            if(passwd[0] == passHash):
-                print('You have logged in')
+            if(passwd==passHash): #cek kesesuaian password
+                print('you have loggedin, welcome ' + uname)
             else:
                 raise falcon.HTTPUnauthorized('Unauthorized', 'password incorrect')
         else:
@@ -134,204 +124,116 @@ class Authorize:
 
         checking = db.check("select * from user_person where username = '%s'" % username)
         if(checking):
-            result = []
-            idu = []
-            uname = []
-            password = []
-            admin = []
-            column = ('Id User', 'Username', 'Password', 'Admin')
             query = db.select("select id_user, username, password, isadmin from user_person where username = '%s'" % username)
-            for row in query:
-                result.append(dict(zip(column, row)))
-            for value in result:
-                idu.append(value['Id User'])
-                password.append(value['Password']) 
-                admin.append(value['Admin'])
-            id_user = idu[0]
-            passwd = password[0]
-            isadmin = admin[0]
-
+            id_user = query[0][0]
+            uname = query[0][1]
+            passwd = query[0][2]
+            isadmin = query[0][3]
             # decode_id = base64.b64decode(idu[0].encode('utf-8')).decode('utf-8')
-
         return id_user, username, passwd, isadmin
 
-    def sendEmail(self, emailAddress, token):
-        server = smtplib.SMTP('smtp.gmail.com:587')
-        urlCode = "http://127.0.0.1:8000/verification?token="+token
-        email_content = """
-        <html>
-         
-        <head>
+    def sendEmail(self, username, emailAddress, token):
+      server = smtplib.SMTP('smtp.gmail.com:587')
+      urlCode = "http://127.0.0.1:8000/user/verification?token="+token
+      email_content = """ 
+      <html>              
+       
+      <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-            
-           <title>Activation Message</title>
-           <style type="text/css">
-            a {color: #d80a3e;}
-          body, #header h1, #header h2, p {margin: 0; padding: 0;}
-          #main {border: 1px solid #cfcece;}
-          img {display: block;}
-          #top-message p, #bottom p {color: #3f4042; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
-          #header h1 {color: #ffffff !important; font-family: "Lucida Grande", sans-serif; font-size: 24px; margin-bottom: 0!important; padding-bottom: 0; }
-          #header p {color: #ffffff !important; font-family: "Lucida Grande", "Lucida Sans", "Lucida Sans Unicode", sans-serif; font-size: 12px;  }
-          h5 {margin: 0 0 0.8em 0;}
-            h5 {font-size: 18px; color: #444444 !important; font-family: Arial, Helvetica, sans-serif; }
-          p {font-size: 12px; color: #444444 !important; font-family: "Lucida Grande", "Lucida Sans", "Lucida Sans Unicode", sans-serif; line-height: 1.5;}
-           </style>
-        </head>
-         
-        <body>
-         
-         
-        <table width="100%" cellpadding="0" cellspacing="0" bgcolor="e4e4e4"><tr><td>
-            <table id="top-message" cellpadding="20" cellspacing="0" width="600" align="center">
-                <tr>
-                  <td align="center">
-                    
-                  </td>
-                </tr>
-            </table>
-             
-            <table id="main" width="600" align="center" cellpadding="0" cellspacing="15" bgcolor="ffffff">
-                <tr>
-                  <td>
-                    <table id="header" cellpadding="10" cellspacing="0" align="center" bgcolor="8fb3e9">
-                      <tr>
-                        <td width="600" align="left"  bgcolor="#2BA6CB"><h1>Activation Message</h1></td>
-                      </tr>
-                      <tr>
-                        <td width="600" align="left" bgcolor="#2BA6CB"><p>Administrator</p></td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-             
-                
-                <tr>
-                  <td>
-                    <table id="content-4" cellpadding="5" cellspacing="0" align="center">
-                      <tr>
-                        <td width="500" valign="top" >
-                          <h5>Dear User</h5>
-                          <p>We have accepted your registration. Please click button below to activate your account.</p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td width="500" valign="top">
-                          <p><a href="""+urlCode+"""><button type="button" class="btn btn-primary">Activate</button></a>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td width = "500" valign="top">
-                          <p><h5>Thank you</h5></p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-            </table>
-        </td></tr></table><!-- wrapper -->
-         
-        </body>
-        </html> 
-        """
-         
-        msg = email.message.Message()
-        msg['Subject'] = 'Activation Message'
-         
-         
-        msg['From'] = 'haninfaishal13@gmail.com'
-        msg['To'] = emailAddress
-        password = "hidupmulia45"
-        msg.add_header('Content-Type', 'text/html')
-        msg.set_payload(email_content)
-         
-        s = smtplib.SMTP('smtp.gmail.com: 587')
-        s.starttls()
-         
-        # Login Credentials for sending the mail
-        s.login(msg['From'], password)
-         
-        s.sendmail(msg['From'], [msg['To']], msg.as_string())
+        <title>Activation Message</title>
+      </head>
+      <body>
+      <table width="100%" cellpadding="0" cellspacing="0" bgcolor="e4e4e4"><tr><td>
+          <table id="top-message" cellpadding="20" cellspacing="0" width="600" align="center">
+              <tr>
+                <td align="center">
+                  
+                </td>
+              </tr>
+          </table>
+           
+          <table id="main" width="600" align="center" cellpadding="0" cellspacing="15" bgcolor="ffffff">
+              <tr>
+                <td>
+                  <table id="header" cellpadding="10" cellspacing="0" align="center" bgcolor="8fb3e9">
+                    <tr>
+                      <td width="600" align="left"  bgcolor="#2BA6CB"><h1>Activation Message</h1></td>
+                    </tr>
+                    <tr>
+                      <td width="600" align="left" bgcolor="#2BA6CB"><p>Administrator</p></td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>   
+              <tr>
+                <td>
+                  <table id="content-4" cellpadding="5" cellspacing="0" align="center">
+                    <tr>
+                      <td width="500" valign="top" >
+                        <h5>Dear """+username+"""</h5>
+                        <p>We have accepted your registration. Please click button below to activate your account.</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td width="500" valign="top">
+                        <p><a href="""+urlCode+"""><button type="button" class="btn btn-primary">Activate</button></a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td width = "500" valign="top">
+                        <p><h5>Thank you</h5></p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+          </table>
+      </td></tr>
+      </table><!-- wrapper -->
+       
+      </body>
+      </html> 
+      """
+       
+      msg = email.message.Message()
+      msg['Subject'] = 'Activation Message'
+       
+       
+      msg['From'] = 'haninfaishal13@gmail.com'
+      msg['To'] = emailAddress
+      password = "hidupmulia45"
+      msg.add_header('Content-Type', 'text/html') 
+      msg.set_payload(email_content)
+       
+      s = smtplib.SMTP('smtp.gmail.com: 587')
+      s.starttls()
+       
+      # Login Credentials for sending the mail
+      s.login(msg['From'], password) #pastikan email udah dikonfigurasi keamanannya
+       
+      s.sendmail(msg['From'], [msg['To']], msg.as_string())
 
-    def forgetPasswordMail(self, mail, token):
+    def forgetPasswordMail(self, mail, username, password):
         server = smtplib.SMTP('smtp.gmail.com:587')
         # urlCode = "http://127.0.0.1:8000/login/forget"
         email_content = """
         <html>
-         
-        <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-            
-           <title>Activation Message</title>
-           <style type="text/css">
-            a {color: #d80a3e;}
-          body, #header h1, #header h2, p {margin: 0; padding: 0;}
-          #main {border: 1px solid #cfcece;}
-          img {display: block;}
-          #top-message p, #bottom p {color: #3f4042; font-size: 12px; font-family: Arial, Helvetica, sans-serif; }
-          #header h1 {color: #ffffff !important; font-family: "Lucida Grande", sans-serif; font-size: 24px; margin-bottom: 0!important; padding-bottom: 0; }
-          #header p {color: #ffffff !important; font-family: "Lucida Grande", "Lucida Sans", "Lucida Sans Unicode", sans-serif; font-size: 12px;  }
-          h5 {margin: 0 0 0.8em 0;}
-            h5 {font-size: 18px; color: #444444 !important; font-family: Arial, Helvetica, sans-serif; }
-          p {font-size: 12px; color: #444444 !important; font-family: "Lucida Grande", "Lucida Sans", "Lucida Sans Unicode", sans-serif; line-height: 1.5;}
-           </style>
-        </head>
-         
-        <body>
-         
-         
-        <table width="100%" cellpadding="0" cellspacing="0" bgcolor="e4e4e4"><tr><td>
-            <table id="top-message" cellpadding="20" cellspacing="0" width="600" align="center">
-                <tr>
-                  <td align="center">
-                    
-                  </td>
-                </tr>
-            </table>
-             
-            <table id="main" width="600" align="center" cellpadding="0" cellspacing="15" bgcolor="ffffff">
-                <tr>
-                  <td>
-                    <table id="header" cellpadding="10" cellspacing="0" align="center" bgcolor="8fb3e9">
-                      <tr>
-                        <td width="600" align="left"  bgcolor="#2BA6CB"><h1>Activation Message</h1></td>
-                      </tr>
-                      <tr>
-                        <td width="600" align="left" bgcolor="#2BA6CB"><p>Administrator</p></td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-             
-                
-                <tr>
-                  <td>
-                    <table id="content-4" cellpadding="5" cellspacing="0" align="center">
-                      <tr>
-                        <td width="500" valign="top" >
-                          <h5>Dear User</h5>
-                          <p>If you request to change password, use this token for verification. If no, ignore this mail</p>
-                          <p style="padding:10px 0; font-weight:1000; font-size:20px;">"""+token+"""</p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td width = "500" valign="top">
-                          <h5>Thank you</h5>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-            </table>
-        </td></tr></table><!-- wrapper -->
-        <script>
-        </script>
-        </body>
-        </html> 
+          <head>
+          </head>
+          <body>
+            <h3>Dear """+username+""". </h3>
+
+            <p>We have accepted your forget password request. Use this password for log in.</p>
+
+            <p><h4>"""+password+"""</h4></p>
+
+            <p>Thank You</p>
+          </body
+        </html>
         """
          
         msg = email.message.Message()
-        msg['Subject'] = 'Activation Message'
+        msg['Subject'] = 'New Password'
          
          
         msg['From'] = 'haninfaishal13@gmail.com'

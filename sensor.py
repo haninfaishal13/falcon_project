@@ -10,117 +10,75 @@ class Sensor:
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
         isadmin = authData[3]
-        i = 0
 
         results = []
-        column = ('Id Sensor', 'Name', 'Unit', 'activity', 'id hardware', 'id node')
+        column = ('Id Sensor', 'Name', 'Unit', 'id hardware', 'id node')
         if isadmin:
+            # jika pengguna adalah admin, maka pengguna dapat melihat semua sensor yang sudah diinput oleh pengguna lainnya
             query = db.select("select * from sensor")
-
             for row in query:
                 results.append(dict(zip(column, row)))
             output = {
-                'success' : True,
-                'message' : 'get sensor data',
-                'sensor' : results
+                'title' : 'get sensor data',
+                'description' : results
             }
         else:
-            query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, sensor.activity, 
+            # jika bukan admin, maka pengguna hanya dapat melihat sensor yang sudah diinput oleh dirinya sendiri
+            query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, 
                                 sensor.id_hardware, sensor.id_node from sensor left join node
                                 on sensor.id_node = node.id_node where node.id_user = '%s' ''' % idu)
             for row in query:
                 results.append(dict(zip(column, row)))
             output = {
-                'success' : True,
-                'message' : 'get your sensor data',
-                'sensor' : results
+                'title' : 'get sensor',
+                'description' : results
             }
         resp.body = json.dumps(output, indent = 2)
         db.close()
 
-#   Sensor-Hardware Scenario
     @falcon.before(Authorize())
     def on_get_id(self, req, resp, ids):
         db = database()
         auth = Authorize()
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
-        isadmin = authData[3]
-
-        scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        try: 
+            scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not scheck:
-            raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
+            raise falcon.HTTPNotFound()
         query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-        value = query[0]
-        id_user = value[0]
-        if not isadmin:
-            if(id_user != idu):
-               raise falcon.HTTPForbidden('Forbidden', 'You are not admin') 
-
-        sensor = []
+        id_user = query[0][0]
+        if(id_user != idu):
+           raise falcon.HTTPForbidden('Forbidden', 'You cannot see another user\'s sensor')
         channel = []
-        scolumn = ('id_sensor', 'name', 'unit','activity', 'time', 'value')
         ccolumn = ('time', 'value')
-        query = db.select("select id_sensor, name, unit, activity from sensor where id_sensor = '%s'" % ids)
-        for row in query:
-            sensor.append(dict(zip(scolumn, row)))
-        query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
-        for row in query:
+        squery = db.select("select id_sensor, name, unit from sensor where id_sensor = '%s'" % ids)
+        channel_query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
+        for row in channel_query:
             channel.append(dict(zip(ccolumn, row)))
+        key = {
+            'id_sensor' : squery[0][0],
+            'name'      : squery[0][1],
+            'unit'      : squery[0][2],
+            'channel'   : channel
+        }
         output = {
-            'success' : True,
-            'message' : 'get sensor data',
-            'sensor' : sensor,
-            'channel':channel
+            'title' : 'get specific sensor',
+            'description': key
         }
         resp.body = json.dumps(output, indent = 2)
-
         db.close()
 
-    # @falcon.before(Authorize())
-    # def on_get_sensor(self, req, resp, ids):
-    #     db = database()
-    #     auth = Authorize()
-    #     authData = auth.getAuthentication(req.auth.split(' '))
-    #     idu = authData[0]
-    #     isadmin = authData[3]
-
-    #     scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
-    #     if not scheck:
-    #         raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
-    #     query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-    #     value = query[0]
-    #     id_user = value[0]
-    #     if not isadmin:
-    #         if(id_user != idu):
-    #            raise falcon.HTTPForbidden('Forbidden', 'You are not admin') 
-
-    #     sensor = []
-    #     channel = []
-    #     scolumn = ('id sensor', 'name', 'unit','activity', 'time', 'value')
-    #     ccolumn = ('time', 'value')
-    #     query = db.select("select id_sensor, name, unit, activity from sensor where id_sensor = '%s'" % ids)
-    #     for row in query:
-    #         sensor.append(dict(zip(scolumn, row)))
-    #     query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
-    #     for row in query:
-    #         channel.append(dict(zip(ccolumn, row)))
-    #     output = {
-    #         'success' : True,
-    #         'message' : 'get sensor data',
-    #         'sensor' : sensor,
-    #         'channel':channel
-    #     }
-    #     resp.body = json.dumps(output, indent = 2)
-
-    #     db.close()
-
     @falcon.before(Authorize())
-    def on_post_add(self, req, resp, idn, type):
+    def on_post(self, req, resp):
         db = database()
+        function = Function()
         auth = Authorize()
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
+        isadmin = authData[3]
 
         key = []
         if req.content_type is None:
@@ -132,48 +90,51 @@ class Sensor:
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        required = {'name', 'unit', 'activity'}
+        required = {'name', 'unit', 'id_node'}
         missing = required - set(params.keys())
         given = set(params.keys()) - required
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-        if type != "sensor":
-            raise falcon.HTTPBadRequest()
+            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
         name = params['name']
         unit = params['unit']
-        activity = params['activity']
-
-        if 'hardware' in given:
+        id_node = params['id_node']
+        try:
+            checking = db.check("select id_node from node where id_node = '%s'" % id_node)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+        if not checking:
+            raise falcon.HTTPBadRequest('Bad Request', 'Id Node not found')
+        id_user = function.nodeItem(id_node, 'id_user') #cek id user pemilik node yang akan diedit
+        if(id_user != idu): #kalau bukan node miliknya dan bukan admin, dapet response error
+            if(not isadmin):
+                raise falcon.HTTPForbidden('Forbidden', 'You cannot use other user\'s node')
+        if 'id_hardware' in given:
             id_hardware = params['id_hardware']
-            db.commit("insert into sensor (name, unit, activity, id_node, id_hardware) values ('%s','%s','%s','%s','%s'" % (name, unit, activity, idn, id_hardware))
-            key = {
-                'name':name,
-                'unit':unit,
-                'activity':activity,
-                'id node':idn,
-                'id hardware':id_hardware
-            }
-            output = {
-                'success':True,
-                'message':'add new sensor',
-                'sensor':key
-            }
-        elif 'hardware' not in given:
-            db.commit("insert into sensor (name, unit, activity, id_node, id_hardware) values ('%s','%s','%s','%s',NULL)" % (name, unit, activity, idn))
-            key = {
-                'name':name,
-                'unit':unit,
-                'activity':activity,
-                'id node':idn,
-                'id hardware':None
-            }
-            output = {
-                'success':True,
-                'message':'add new sensor',
-                'sensor':key
-            }
+            try:
+                checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+            except:
+                raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            if not checking1:
+                raise falcon.HTTPBadRequest('Bad Request', 'Id hardware not found: {}'.format(id_hardware))
+            checking2 = db.check("select type from hardware where id_hardware = '%s' and lower(type) = 'sensor'" % id_hardware)
+            if not checking2:
+                raise falcon.HTTPBadRequest('Bad Request', 'Hardware type not match, type should Sensor')
+            try:
+                db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s','%s')" % (name, unit, id_node, id_hardware))
+            except:
+                raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+        elif 'id hardware' not in given:
+            try:
+                db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s',NULL)" % (name, unit, id_node))
+            except:
+                raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+        output = {
+            'title':'add sensor',
+            'description':'success add new sensor'
+        }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
+        
         db.close()
 
     @falcon.before(Authorize())
@@ -183,7 +144,7 @@ class Sensor:
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
         isadmin = authData[3]
-        ids = int(ids)
+        
 
         if req.content_type is None:
             raise falcon.HTTPBadRequest("Empty request body")
@@ -194,47 +155,39 @@ class Sensor:
         else:
             raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
 
-        scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        try: #antisipasi jika ada masukan id tidak sesuai dengan tipe data pada database
+            ids = int(ids)
+            scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not scheck:
-            raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
+            raise falcon.HTTPNotFound()
         query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
         value = query[0]
         id_user = value[0]
         if not isadmin:
             if(id_user != idu):
-               raise falcon.HTTPForbidden('Forbidden', 'You are not admin')
-
-        results = []
-        column = ('Id Sensor', 'name', 'Unit', 'id hardware', 'id node')
-        required = {'name', 'unit', 'activity'}
+               raise falcon.HTTPForbidden('Forbidden', 'You cannot edit other user\'s sensor')
+        required = {'name', 'unit'}
         missing = required - set(params.keys())
-
-        if 'name' in missing and 'unit' in missing and 'activity' in missing:
-            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-        if 'name' not in missing and 'unit' not in missing and 'activity' not in missing:
-            db.commit("update sensor set name = '%s', unit = '%s', activity = '%s' where id_sensor = '%s'"
-                          % (params['name'], params['unit'], params['activity'], ids))
-        elif 'name' not in missing and 'activity' not in missing:
-            db.commit("update sensor set name = '%s', activity = '%s' where id_sensor = '%s'" % (params['name'], params['activity'], ids))
-        elif 'unit' not in missing and 'activity' not in missing:
-            db.commit("update sensor set unit = '%s', activity = '%s' where id_sensor = '%s'" % (params['unit'],params['activity'], ids))
-        elif 'name' not in missing and 'unit' not in missing:
-            db.commit("update sensor set name = '%s', unit = '%s' where id_sensor = '%s'" % (params['name'], params['unit'], ids))
-        elif 'name' not in missing:
-            db.commit("update sensor set name = '%s' where id_sensor = '%s'" % (params['name'], ids))
-        elif 'unit' not in missing:
-            db.commit("update sensor set unit = '%s' where id_sensor = '%s'" % (params['unit'], ids))
-        elif 'activity' not in missing:
-            db.commit("update sensor set activity = '%s' where id_sensor = '%s'" % (params['activity'], ids))
-        query = db.select("select * from sensor where id_sensor = '%s'" % ids)
-        for row in query:
-            results.append(dict(zip(column, row)))
-        output = {
-            'success' : True,
-            'message' : 'update sensor data',
-            'sensor' : results
-        }
-        resp.body = json.dumps(output, indent = 2)
+        
+        try: #antisipasi data pada body tidak sesuai dengan tipe data pada database
+            if 'name' in missing and 'unit' in missing:
+                raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            if 'name' not in missing and 'unit' not in missing:
+                db.commit("update sensor set name = '%s', unit = '%s' where id_sensor = '%s'"
+                              % (params['name'], params['unit'], ids))
+            elif 'name' not in missing:
+                db.commit("update sensor set name = '%s' where id_sensor = '%s'" % (params['name'], ids))
+            elif 'unit' not in missing:
+                db.commit("update sensor set unit = '%s' where id_sensor = '%s'" % (params['unit'], ids))
+            output = {
+                'title' : 'Edit sensor',
+                'description' : 'Success edit sensor data'
+            }
+            resp.body = json.dumps(output, indent = 2)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         db.close()
 
     @falcon.before(Authorize())
@@ -244,32 +197,22 @@ class Sensor:
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
         isadmin = authData[3]
-        ids = int(ids)
-
-        if req.content_type is None:
-            raise falcon.HTTPBadRequest("Empty request body")
-        elif 'form' in req.content_type:
-            params = req.params
-        elif 'json' in req.content_type:
-            params = json.load(req.bounded_stream)
-        else:
-            raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-
-        scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        try:
+            scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+        except:
+            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
         if not scheck:
-            raise falcon.HTTPBadRequest('Id Sensor does not exist: {}'.format(ids))
+            raise falcon.HTTPNotFound()
         query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-        value = query[0]
-        id_user = value[0]
+        id_user = query[0][0]
         if not isadmin:
             if(id_user != idu):
-               raise falcon.HTTPForbidden('Forbidden', 'You are not admin')
+               raise falcon.HTTPForbidden('Forbidden', 'You cannot delete other user\'s sensor')
 
         db.commit("delete from sensor where id_sensor = '%s'" % ids)
         output = {
-            'success' : True,
-            'message' : 'delete sensor data',
-            'Id' : '{}'.format(ids)
+            'title' : 'delete sensor',
+            'description' : 'succes delete sensor data, id: {}'.format(ids)
         }
         resp.body = json.dumps(output)
         db.close()
