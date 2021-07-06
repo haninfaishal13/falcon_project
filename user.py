@@ -31,14 +31,13 @@ class User:
             passwd = query[0][1]
             if(passwd == passHash):
                 output = {
-                    'title' : True,
-                    'description' : 'Logged in, Welcome'
+                    'title' : 'Logged in'
                 }
                 resp.body = json.dumps(output, indent = 2)
             else:
-                raise falcon.HTTPBadRequest('Unauthorized','Username not found or password incorrect')
+                raise falcon.HTTPBadRequest('Username not found or password incorrect')
         else:
-            raise falcon.HTTPBadRequest('Unauthorized','Username not found or password incorrect')
+            raise falcon.HTTPBadRequest('Username not found or password incorrect')
         db.close()
 
     def on_post_signup(self, req, resp):
@@ -56,7 +55,7 @@ class User:
         required = {'username', 'email', 'password'}
         missing = required - set(params.keys())
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         username = params['username']
         emailAddress = params['email']
         password = params['password']
@@ -67,19 +66,18 @@ class User:
             passHash = hashlib.sha256(password.encode()).hexdigest()
             token = hashlib.sha256(tokenOriginal.encode()).hexdigest()
         else:
-            raise falcon.HTTPBadRequest('Bad Request', 'email format is not correct') 
+            raise falcon.HTTPBadRequest('Email format is incorrect') 
 
         emailChecking = db.check("select * from user_person where email = '%s'" % emailAddress)
         usernameChecking = db.select("select * from user_person where username = '%s'" % username)
         if emailChecking or usernameChecking:
-            raise falcon.HTTPBadRequest('Bad_Request','Email or Username already used')
+            raise falcon.HTTPBadRequest('Email or Username already used')
         else:
             auth.sendEmail(username, emailAddress, token)
             db.commit("insert into user_person (username, email, password, token) values ('%s','%s', '%s', '%s')" % (username, emailAddress, passHash, token))
             
         output = {
-            'title' : "Sign up",
-            'description' : 'Success sign up, check email for verification'
+            'title' : 'Success sign up, check email for verification'
         }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
@@ -98,11 +96,10 @@ class User:
         if checking:
             db.commit("update user_person set status = '1' where token = '%s'" % token) #Tambah ubah token jadi NULL
             output = {
-                'title':'Activate account',
-                'description': 'Account has been activated'
+                'title':'Account has been activated'
             }
         else:
-            raise falcon.HTTPBadRequest('Bad Request','You Account has been activated')
+            raise falcon.HTTPBadRequest('Your account has already activated')
         resp.status = falcon.HTTP_200
         resp.body = json.dumps(output, indent = 2)
         db.close()
@@ -117,15 +114,11 @@ class User:
         results = []
         column = ('Id User', 'Name', 'Email')
         if(not isadmin):
-            raise falcon.HTTPForbidden('Forbidden', 'You are not administrator')
+            raise falcon.HTTPForbidden('You are not administrator')
         query = db.select("select id_user, username, email from user_person")
         for row in query:
             results.append(dict(zip(column, row)))
-        output = {
-            'title' : "get user data",
-            'description' : results
-        }
-        resp.body = json.dumps(output, indent=2)
+        resp.body = json.dumps(results, indent=2)
         db.close()
 
     @falcon.before(Authorize())
@@ -142,11 +135,11 @@ class User:
         scolumn = ('Id Sensor', 'Sensor Name', 'Sensor Unit')
         if(not isadmin):    
             if(idu != str(id_user)):
-                raise falcon.HTTPForbidden('Forbidden','You are not an admin')
+                raise falcon.HTTPForbidden('You can\'t see another user\' account')
         try:
             usrcheck = db.check("select id_user, username from user_person where id_user = '%s'" % idu)     
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         if usrcheck: #checking id user exist or not
             uquery = db.select("select id_user, username, email from user_person where id_user = '%s'" % idu)
             nquery = db.select("select id_node, name, location from node where id_user = '%s'" % idu)
@@ -165,83 +158,9 @@ class User:
             'node'      : nresults,
             'sensor'    : sresults
         }
-        output = {
-            'title' : 'get user specific data',
-            'description' : key
-        }
-        resp.body = json.dumps(output, indent = 2)
+        resp.body = json.dumps(key, indent = 2)
         db.close()
 
-    # def on_post_emailforget(self, req, resp):
-    #     db = database()
-    #     auth = Authorize()
-    #     if req.content_type is None:
-    #         raise falcon.HTTPBadRequest("Empty request body")
-    #     elif 'form' in req.content_type:
-    #         params = req.params
-    #     elif 'json' in req.content_type:
-    #         params = json.load(req.bounded_stream)
-    #     else:
-    #         raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-    #     required = {'email'}
-    #     missing = required - set(params.keys())
-    #     if missing:
-    #         raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-
-    #     mail = params['email']
-    #     token = ''.join(random.choice(string.ascii_uppercase+string.digits) for _ in range(6))
-    #     tokenHash = hashlib.sha256(token.encode()).hexdigest()
-    #     checking = db.check("select email from user_person where email = '%s'" % mail)
-    #     if not checking:
-    #         raise falcon.HTTPBadRequest('Bad Request','Email not found')
-
-    #     checkToken = db.check("select token from user_person where token = '%s'" % tokenHash)
-    #     while checkToken:
-    #         token = ''.join(random.choice(string.ascii_uppercase+string.digits) for _ in range(6))
-    #         tokenHash = hashlib.sha256(token.encode()).hexdigest()
-    #         checkToken = db.check("select token from user_person where token = '%s'" % tokenHash)
-    #     auth.forgetPasswordMail(mail, token)
-    #     db.commit("update user_person set token = '%s' where email = '%s'" % (tokenHash, mail))
-
-    #     output = {
-    #         'success' : True,
-    #         'message' : 'send email, check email for change forgotten password'
-    #     }
-    #     resp.body = json.dumps(output, indent = 2)
-    #     db.close()
-
-    # def on_put_passwordforget(self, req, resp):
-    #     global results
-    #     db = database()
-
-    #     if req.content_type is None:
-    #         raise falcon.HTTPBadRequest("Empty request body")
-    #     elif 'form' in req.content_type:
-    #         params = req.params
-    #     elif 'json' in req.content_type:
-    #         params = json.load(req.bounded_stream)
-    #     else:
-    #         raise falcon.HTTPUnsupportedMediaType("Supported format: JSON or form")
-    #     required = {'token', 'password'}
-    #     missing = required - set(params.keys())
-    #     if missing:
-    #         raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
-
-    #     token = params['token']
-    #     password = params['password']
-    #     tokenHash = hashlib.sha256(token.encode()).hexdigest()
-    #     passHash = hashlib.sha256(password.encode()).hexdigest()
-    #     checking = db.check("select token from user_person where token = '%s'" % tokenHash)
-    #     if not checking:
-    #         raise falcon.HTTPBadRequest('Bad Request', 'Token not correct')
-
-    #     db.commit("update user_person set password = '%s' where token = '%s'" % (passHash, tokenHash))
-    #     output = {
-    #         'success' : True,
-    #         'message' : 'password has been reset'
-    #     }
-    #     resp.body = json.dumps(output, indent = 2)
-    #     db.close()
     def on_post_forgetPassword(self, req, resp):
         db = database()
         auth = Authorize()
@@ -256,16 +175,16 @@ class User:
         required = {'email', 'username'}
         missing = required - set(params.keys())
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         regex = r'[\w!#$%&\'*+-/=?^_`{|}~.]+@[\w\.-]+'
         if not re.search(regex, str(params['email'])):
-            raise falcon.HTTPBadRequest('Bad Request', 'email format is not correct')
+            raise falcon.HTTPBadRequest('Email format is incorrect')
         checking = db.check("select email, username from user_person where email = '%s' and username = '%s'" % (params['email'], params['username']))
         if not checking:
-            raise falcon.HTTPBadRequest('Bad Request', 'Username or Email not correct')
+            raise falcon.HTTPBadRequest('Username or email not correct')
         query = db.select("select status from user_person where email = '%s'" % params['email'])
         if not query[0][0]:
-           raise falcon.HTTPForbidden('Forbidden', 'Your account is inactive. Check your email for activation') 
+           raise falcon.HTTPForbidden('Your account is inactive. Check your email for activation') 
         newPassword = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         
         passHash = hashlib.sha256(newPassword.encode()).hexdigest()
@@ -273,8 +192,7 @@ class User:
         auth.forgetPasswordMail(params['email'],params['username'], newPassword)
         db.commit("update user_person set password = '%s' where email = '%s'" % (passHash, params['email']))
         output = {
-            'title':'forget password',
-            'description':'Forget password request sent. Check email for new password'
+            'title':'Forget password request sent. Check email for new password'
         }
         resp.body = json.dumps(output, indent = 2)
         db.close()
@@ -304,14 +222,14 @@ class User:
         try: #antisipasi input id user tidak sesuai dengan tipe data pada database
             checking = db.check("select id_user from user_person where id_user = '%s'" % idu)
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         if not checking:
             raise falcon.HTTPNotFound()
         if(id_user != idu):
-            raise falcon.HTTPForbidden('Forbidden', 'you cannot edit other users data')
+            raise falcon.HTTPForbidden('Can\'t edit another user\'s account')
 
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing Parameter: {}'.format(missing))
 
         oPasswd = params['old password']
         nPasswd = params['new password']
@@ -323,8 +241,7 @@ class User:
             newPassHash = hashlib.sha256(nPasswd.encode()).hexdigest()
             db.commit("update user_person set password = '%s' where id_user = '%s'" % (newPassHash, idu))
             output = {
-                'title':'Change Password',
-                'description':'success change password',
+                'title':'Success change password',
             }
             resp.body = json.dumps(output, indent = 2)
         db.close()
@@ -339,14 +256,13 @@ class User:
 
         if(idu != id_user):
             if not isadmin:
-                raise falcon.HTTPForbidden('Forbidden', 'You are not an admin')
+                raise falcon.HTTPForbidden('Can\'t delete another user\' account')
         checking = db.check("select * from user_person where id_user = '%s'" % idu)
         if checking:
             try:
                 db.commit("delete from user_person where id_user = '%d'" % int(idu))
                 output = {
-                    'title':'delete user',
-                    'description': 'delete user, id: {}'.format(idu)
+                    'title': 'delete user, id: {}'.format(idu)
                 }
                 resp.body = json.dumps(output)
             except:

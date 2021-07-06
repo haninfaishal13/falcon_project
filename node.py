@@ -17,20 +17,13 @@ class Node:
             query = db.select("select * from node")
             for row in query:
                 results.append(dict(zip(column, row)))
-            output = {
-                'title' : 'get node',
-                'description' : results
-            }
             resp.body = json.dumps(output, indent=2)
         else:
             query = db.select("select * from node where id_user = '%s'" % idu)
             for row in query:
                 results.append(dict(zip(column, row)))
-            output = {
-                'title' : 'get node',
-                'description' : results
-            }
-            resp.body = json.dumps(output, indent=2)
+            
+        resp.body = json.dumps(results, indent=2)
         db.close()
 
     @falcon.before(Authorize())
@@ -44,19 +37,17 @@ class Node:
         try:
             ncheck = db.check("select * from node where id_node = '%s'" % idn)
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         if not ncheck:
             raise falcon.HTTPNotFound()
 
         id_user = function.nodeItem(idn, 'id_user')
         if(id_user != idu):
             if(not isadmin):
-                raise falcon.HTTPForbidden('Forbidden', 'You are not an admin')
+                raise falcon.HTTPForbidden('You are not an admin')
 
-        node = []
         hardware = []
         sensor = []
-        ncolumn = ('id_node', 'name', 'location', 'id_user','username')
         hcolumn = ('name', 'type')
         scolumn = ('id_sensor','name', 'unit')
         nquery = db.select('''select node.id_node, node.name, node.location, user_person.id_user, user_person.username 
@@ -81,11 +72,7 @@ class Node:
             'hardware'  : hardware,
             'sensor'    : sensor
         }
-        output = {
-            'title':'get node data',
-            'description': key
-        }
-        resp.body = json.dumps(output, indent=2)
+        resp.body = json.dumps(key, indent=2)
             
         db.close()
 
@@ -93,7 +80,6 @@ class Node:
     def on_post(self, req, resp):
         auth = Authorize()
         db = database()
-
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
 
@@ -111,7 +97,7 @@ class Node:
         missing = required - set(params.keys())
         notgiven = set(params.keys()) - required
         if missing:
-            raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+            raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
         
         node_name = params['name']
         location = params['location']
@@ -121,20 +107,19 @@ class Node:
             try:
                 checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
             except:
-                raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+                raise falcon.HTTPBadRequest('Parameter is invalid')
             if not checking1:
-                raise falcon.HTTPBadRequest('Bad Request', 'Id hardware not found: {}'.format(id_hardware))
+                raise falcon.HTTPBadRequest('Id hardware not found')
             checking2 = db.check("select type from hardware where id_hardware = '%s' and (lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit')" % id_hardware)
             if not checking2:
-                raise falcon.HTTPBadRequest('Bad Request', 'Hardware type not match, type should Microcontroller Unit or Single-Board Computer')
+                raise falcon.HTTPBadRequest('Hardware type not match, type should Microcontroller Unit or Single-Board Computer')
             db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', '%s', '%s')" % (node_name, location, id_hardware, id_user))
 
         elif 'id hardware' not in notgiven:
             db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', NULL, '%s')" % (node_name, location, id_user))
         
         output = {
-            'title': 'add node', 
-            'description':'success add new node'
+            'title': 'Success add new node'
         }
         resp.status = falcon.HTTP_201
         resp.body = json.dumps(output, indent = 2)
@@ -164,20 +149,20 @@ class Node:
         try: #antisipasi jika input id node tidak sesuai dengan tipe data pada database
             ncheck = db.check("select * from node where id_node = '%s'" % idn)
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         if not ncheck:
             raise falcon.HTTPNotFound()
 
         id_user = function.nodeItem(idn, 'id_user') #cek id user pemilik node yang akan diedit
         if(id_user != idu): #kalau bukan node miliknya dan bukan admin, dapet response error
             if(not isadmin):
-                raise falcon.HTTPForbidden('Forbidden', 'You cannot edit other user\'s node')
+                raise falcon.HTTPForbidden('You can\'t edit another user\'s node')
 
         required = {'name', 'location'}
         missing = required - set(params.keys())
         try: #antisipasi jika masukan pada body tidak sesuai dengan tipe data pada database
             if 'name' in missing and 'location' in missing:
-                raise falcon.HTTPBadRequest('Missing parameter','Parameter used is missing: {}'.format(missing))
+                raise falcon.HTTPBadRequest('Missing parameter: {}'.format(missing))
             elif 'name' not in missing and 'location' not in missing:
                 db.commit("update node set name = '%s', location = '%s' where id_node = '%s'"
                           % (params['name'], params['location'], idn))
@@ -186,12 +171,11 @@ class Node:
             elif 'name' not in missing:
                 db.commit("update node set name = '%s' where id_node = '%s'" % (params['name'], idn))
             output = {
-                'title':'Edit node',
-                'description':'Success edit node'
+                'title':'Success edit node'
             }
             resp.body = json.dumps(output, indent = 2)
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         
         db.close()
 
@@ -207,19 +191,18 @@ class Node:
         try: #antisipasi input id node tidak sesuai dengan tipe data pada database 
             ncheck = db.check("select * from node where id_node = '%s'" % idn)
         except:
-            raise falcon.HTTPBadRequest('Bad Request', 'Parameter is invalid')
+            raise falcon.HTTPBadRequest('Parameter is invalid')
         if not ncheck:
             raise falcon.HTTPNotFound()
         id_user = function.nodeItem(idn,'id_user')
         if(id_user != idu):
-            raise falcon.HTTPForbidden('Forbidden', 'You cannot delete other user\'s data')
+            raise falcon.HTTPForbidden('You cannot delete another user\'s data')
         
         checking = db.check("select * from node where id_node = '%s'" % idn)
         if checking:
             db.commit("delete from node where id_node = '%s'" % idn)
             output = {
-                'title' : 'delete node',
-                'message': 'success delete node, id: {}'.format(idn)
+                'title' : 'Success delete node, id: {}'.format(idn)
             }
             resp.body = json.dumps(output)
 
