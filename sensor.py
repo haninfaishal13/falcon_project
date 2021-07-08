@@ -35,6 +35,7 @@ class Sensor:
         auth = Authorize()
         authData = auth.getAuthentication(req.auth.split(' '))
         idu = authData[0]
+        isAdmin = authData[3]
         try: 
             scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
         except:
@@ -44,7 +45,8 @@ class Sensor:
         query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
         id_user = query[0][0]
         if(id_user != idu):
-           raise falcon.HTTPForbidden('You can\'t see another user\'s sensor')
+            if not isAdmin:
+                raise falcon.HTTPForbidden('You can\'t see another user\'s sensor')
         channel = []
         ccolumn = ('time', 'value')
         squery = db.select("select id_sensor, name, unit from sensor where id_sensor = '%s'" % ids)
