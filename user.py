@@ -83,7 +83,7 @@ class User:
         resp.body = json.dumps(output, indent = 2)
         db.close()
 
-    def on_get_verification(self, req, resp):
+    def on_get_activation(self, req, resp):
         db = database()
         token = req.params['token']
         # Udah aktif

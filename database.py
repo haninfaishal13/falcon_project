@@ -134,7 +134,7 @@ class Authorize:
 
     def sendEmail(self, username, emailAddress, token):
       server = smtplib.SMTP('smtp.gmail.com:587')
-      urlCode = "http://127.0.0.1:8000/user/verification?token="+token
+      urlCode = "http://127.0.0.1:8000/user/activation?token="+token
       email_content = """ 
       <html>              
        

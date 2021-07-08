@@ -17,12 +17,10 @@ class Node:
             query = db.select("select * from node")
             for row in query:
                 results.append(dict(zip(column, row)))
-            resp.body = json.dumps(output, indent=2)
         else:
             query = db.select("select * from node where id_user = '%s'" % idu)
             for row in query:
                 results.append(dict(zip(column, row)))
-            
         resp.body = json.dumps(results, indent=2)
         db.close()
 
