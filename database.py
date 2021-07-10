@@ -49,14 +49,14 @@ class Authorize:
   def process_request(self, req, resp):
     auth = req.get_header('Authorization')
     if auth is None:
-        if(
-          req.path == '/user/verification' 
-          or req.path == '/user/login' 
-          or req.path == '/user/signup'
-          or req.path == '/user/forget-password'):
-          return True
-    if(req.method == 'OPTIONS'):
-      return True
+      if(
+        req.path == '/user/verification' 
+        or req.path == '/user/login' 
+        or req.path == '/user/signup'
+        or req.path == '/user/forget-password'):
+        return True
+      if(req.method == 'OPTIONS'):
+        return True
       raise falcon.HTTPUnauthorized('Authentication required', challenges=['Basic'])
     if not self._is_valid(auth):
       raise falcon.HTTPUnauthorized('Authentication invalid',  challenges=['Basic'])

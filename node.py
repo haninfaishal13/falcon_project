@@ -62,7 +62,7 @@ class Node:
                           left join node on hardware.id_hardware = node.id_hardware 
                           where id_node = '%s' ''' % idn)
     for row in hquery:
-        hardware.append(dict(zip(hcolumn, row)))
+      hardware.append(dict(zip(hcolumn, row)))
     squery = db.select('''select sensor.id_sensor, sensor.name, sensor.unit from sensor
                          left join node on sensor.id_node = node.id_node 
                          where sensor.id_node = '%s' ''' % idn)
