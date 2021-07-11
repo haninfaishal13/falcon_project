@@ -115,8 +115,18 @@ class Node:
     node_name = params['name']
     location = params['location']
     id_user = idu
+    if node_name == '' or location == '':
+      resp.status = falcon.HTTP_400
+      resp.body = 'parameter mustn\'t empty'
+      db.close()
+      return
     if 'id_hardware' in notgiven:
       id_hardware = params['id_hardware']
+      if id_hardware == '':
+        resp.status = falcon.HTTP_400
+        resp.body = 'Parameter mustn\'t empty'
+        db.close()
+        return
       try:
         checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
       except:

@@ -26,22 +26,14 @@ class User:
       resp.body = 'Missing parameter: {}'.format(missing)
       db.close()
       return
-    
-    username = params['username']
-    password = params['password']
-    passHash = hashlib.sha256(password.encode()).hexdigest()
+    passHash = hashlib.sha256(params['password'].encode()).hexdigest()
 
-    ucheck = db.check("select * from user_person where username = '%s'" % username)
+    ucheck = db.check("select * from user_person where username = '%s'" % params['username'])
     if(ucheck):
-      result = []
-      column = ('username', 'password')
-      query = db.select("select username, password from user_person where username = '%s'" % username)
-      for row in query:
-        result.append(dict(zip(column, row)))
-      passwd = query[0][1]
-      if(passwd == passHash):
+      passcheck = db.check("select password from user_person where password = '%s'" % passHash)
+      if (passcheck): 
         resp.body = 'Logged in'
-      else:
+      else:  
         resp.status = falcon.HTTP_400
         resp.body = 'Username not found or password incorrect'
     else:

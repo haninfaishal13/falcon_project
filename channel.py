@@ -31,6 +31,11 @@ class Channel:
 
     ch_value = params['value']
     id_sensor = params['id_sensor']
+    if ch_value == '' or id_sensor == '':
+      resp.status = falcon.HTTP_400
+      resp.body = 'Parameter mustn\'t empty'
+      db.close()
+      return
     try:
       checking = db.check("select id_sensor from sensor where id_sensor = '%s'" % id_sensor)
     except:

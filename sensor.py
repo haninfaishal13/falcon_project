@@ -68,8 +68,6 @@ class Sensor:
     else:
       resp.status = falcon.HTTP_404
       resp.body = 'Id sensor not found'
-      db.close()
-      return
     db.close()
 
   @falcon.before(Authorize())
@@ -137,15 +135,15 @@ class Sensor:
           db.close()
           return
         try:
-          checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+          idhcheck = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
         except:
           resp.status = falcon.HTTP_400
           resp.body = 'Id hardware is invalid'
           db.close()
           return
-        if checking1:
-          checking2 = db.check("select type from hardware where id_hardware = '%s' and lower(type) = 'sensor'" % id_hardware)
-          if checking2:
+        if idhcheck:
+          typecheck = db.check("select type from hardware where id_hardware = '%s' and lower(type) = 'sensor'" % id_hardware)
+          if typecheck:
             db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s','%s')" % (name, unit, id_node, id_hardware))
             resp.status = falcon.HTTP_201
             resp.body = 'Success add new sensor'

@@ -30,12 +30,34 @@ class database:
 
     return curr.fetchall()
 
+  # def user_signup(self, username, email, password, token):
+  #   self.curr.execute("insert into user_person (username, email, password) values ('%s', '%s', '%s', '%s')" % (name, email, password, token))
+  #   self.conn.commit()
+  # def user_login(self, username, password):
+
+  # def add_sensor(self, name, unit, id_node):
+  #   self.curr.execute("insert into sensor (name, unit, id_sensor) values ('%s', '%s', '%s')" % (name, unit, id_node))
+  #   self.conn.commit()
+
+  # def add_sensor_wh(self, name, unit, id_node, id_hardware):
+  #   self.curr.execute("insert into sensor (name, unit, id_sensor, id_hardware) values ('%s', '%s', '%s', '%s')" % (name, unit, id_node, id_hardware))
+  #   self.conn.commit()
+
+  # def add_hardware(self, name, tipe, description):
+  #   self.curr.execute("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (name, tipe, description))
+  #   self.conn.commit()
+  
+  # def add_node(self, name, location):
+  #   self.curr.execute("insert into node (name, location) values ('%s', '%s')" % (name, location))
+  #   self.conn.commit()
+
+  # def add_node_wh(self, name, location, id_hardware):
+  #   self.curr.execute("insert into sensor (name, unit, id_hardware) values ('%s', '%s', '%s')" % (name, unit, id_hardware))
+  #   self.conn.commit()
+
   def commit(self, query):
     self.curr.execute(query)
     self.conn.commit()
-
-  def connCheck(self):
-    return self.conn.closed
 
   def close(self):
     self.curr.close()
@@ -74,13 +96,13 @@ class Authorize:
       status = query[0][2]  #ambil status
       passHash = hashlib.sha256(password.encode()).hexdigest()  #hash password dari auth
       if(not status):       #cek keaktifan user
-        raise falcon.HTTPForbidden('Forbidden', 'Your account is inactive. Check your email for activation')
+        raise falcon.HTTPForbidden('Your account is inactive. Check your email for activation')
       if(passwd==passHash): #cek kesesuaian password
         print('you have loggedin, welcome ' + uname)
       else:
-        raise falcon.HTTPUnauthorized('Unauthorized', 'password incorrect')
+        raise falcon.HTTPUnauthorized('Username not found or Password incorrect')
     else:
-      raise falcon.HTTPUnauthorized('Unauthorized', 'username not found')
+      raise falcon.HTTPUnauthorized('Username not found or password incorrect')
   
   def __call__(self, req, resp, resource, params):
     print("Before trigger - class Authorize")
