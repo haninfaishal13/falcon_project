@@ -27,8 +27,8 @@ class User:
       db.close()
       return
     passHash = hashlib.sha256(params['password'].encode()).hexdigest()
-
-    ucheck = db.check("select * from user_person where username = '%s'" % params['username'])
+    ucehck = db.check("select username from user_person where username = '%s'" % params['username'])
+    ucheck = db.check("select '%s' from user_person where username = '%s'" % ('username',params['username']))
     if(ucheck):
       passcheck = db.check("select password from user_person where password = '%s'" % passHash)
       if (passcheck): 
@@ -79,8 +79,8 @@ class User:
         tokenOriginal = username + emailAddress + password
         passHash = hashlib.sha256(password.encode()).hexdigest()
         token = hashlib.sha256(tokenOriginal.encode()).hexdigest()
-        emailChecking = db.check("select email from user_person where email = '%s'" % emailAddress)
-        usernameChecking = db.check("select username from user_person where username = '%s'" % username)
+        emailChecking = db.check('email', 'user_person', email)
+        usernameChecking = db.check('username', 'user_person', username)
         if not emailChecking and not usernameChecking:
           db.commit("insert into user_person (username, email, password, token) values ('%s','%s', '%s', '%s')" % (username, emailAddress, passHash, token))
           query = db.select("select id_user, username from user_person where username = '%s'" % username)
@@ -103,9 +103,9 @@ class User:
     # Udah aktif
     # Sebelum aktif
     # token tdak ditemukan
-    token_check = db.check("select token from user_person where token = '%s'" % token)
+    token_check = db.check('token', 'user_person', token)
     if token_check:
-      stat_check = db.check("select * from user_person where token = '%s' and status = '0'" % token)
+      stat_check = db.customcheck("select * from user_person where token = '%s' and status = '0'" % token)
       if stat_check:
         db.commit("update user_person set status = '1' where token = '%s'" % token) #Tambah ubah token jadi NULL
         resp.status = falcon.HTTP_200
@@ -150,14 +150,13 @@ class User:
     ncolumn = ('Id Node', 'Node Name', 'Location')
     scolumn = ('Id Sensor', 'Sensor Name', 'Sensor Unit')
     try:
-      usrcheck = db.check("select id_user, username from user_person where id_user = '%s'" % idu)     
+      usrcheck = db.check('id_user', 'user_person', idu)     
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
       db.close()
       return
-    if(not isadmin):    
-      
+    if isadmin:    
       if usrcheck: #checking id user exist or not
         uquery = db.select("select id_user, username, email from user_person where id_user = '%s'" % idu)
         nquery = db.select("select id_node, name, location from node where id_user = '%s'" % idu)
@@ -206,7 +205,7 @@ class User:
       if(params['email'] != '' or params['username'] != ''):
         regex = r'[\w!#$%&\'*+-/=?^_`{|}~.]+@[\w\.-]+'
         if re.search(regex, str(params['email'])):
-          checking = db.check("select email, username from user_person where email = '%s' and username = '%s'" % (params['email'], params['username']))
+          checking = db.customcheck("select email, username from user_person where email = '%s' and username = '%s'" % (params['email'], params['username']))
           if checking:
             query = db.select("select status from user_person where email = '%s'" % params['email'])
             if query[0][0]:
@@ -267,7 +266,7 @@ class User:
       return
 
     try: #antisipasi input id user tidak sesuai dengan tipe data pada database
-      checking = db.check("select id_user from user_person where id_user = '%s'" % idu)
+      checking = db.check('id_user', 'user_person', idu)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -311,7 +310,7 @@ class User:
         resp.body = 'Can\'t delete another user\' account'
         db.close()
         return
-    checking = db.check("select * from user_person where id_user = '%s'" % idu)
+    checking = db.check('id_user', 'user_person', idu)
     if checking:
       try:
         db.commit("delete from user_person where id_user = '%d'" % int(idu))

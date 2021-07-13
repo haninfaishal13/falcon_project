@@ -3,6 +3,17 @@ from database import *
 
 class Channel:
 
+  # @falcon.before(Authorize())
+  # def on_get(self, req, resp):
+  #   db = database()
+  #   channel = []
+  #   column = ('time', 'value', 'id sensor')
+  #   query = db.select("select time, value, id_sensor from channel")
+  #   for row in query:
+  #     channel.append(dict(zip(row, column)))
+  #   resp.body = json.dumps(channel)
+  #   db.close()
+
   @falcon.before(Authorize())
   def on_post(self, req, resp):
     db = database()
@@ -37,7 +48,7 @@ class Channel:
       db.close()
       return
     try:
-      checking = db.check("select id_sensor from sensor where id_sensor = '%s'" % id_sensor)
+      checking = db.check('id_sensor', 'sensor', id_sensor)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'

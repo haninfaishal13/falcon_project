@@ -15,17 +15,10 @@ class Sensor:
     column = ('Id Sensor', 'Name', 'Unit', 'id hardware', 'id node')
     if isadmin:
       # jika pengguna adalah admin, maka pengguna dapat melihat semua sensor yang sudah diinput oleh pengguna lainnya
-      query = db.select("select * from sensor")
-      for row in query:
-        results.append(dict(zip(column, row)))
-
+      results = db.adminGetSensor()
     else:
       # jika bukan admin, maka pengguna hanya dapat melihat sensor yang sudah diinput oleh dirinya sendiri
-      query = db.select('''select sensor.id_sensor, sensor.name, sensor.unit, 
-                          sensor.id_hardware, sensor.id_node from sensor left join node
-                          on sensor.id_node = node.id_node where node.id_user = '%s' ''' % idu)
-      for row in query:
-        results.append(dict(zip(column, row)))
+      results = db.userGetSensor(idu)
     resp.body = json.dumps(results, indent = 2)
     db.close()
 
@@ -37,31 +30,26 @@ class Sensor:
     idu = authData[0]
     isAdmin = authData[3]
     try: 
-      scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+      scheck = db.check('id_sensor', 'sensor', ids)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Id sensor is invalid'
       db.close()
       return
     if scheck:
-      query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-      id_user = query[0][0]
+      id_user = db.getSensorUserId(ids)
       if(id_user != idu):
         if not isAdmin:
           resp.status = falcon.HTTP_403
           resp.body = 'You can\'t see another user\'s sensor'
           db.close()
           return
-      channel = []
-      ccolumn = ('time', 'value')
-      squery = db.select("select id_sensor, name, unit from sensor where id_sensor = '%s'" % ids)
-      channel_query = db.select('''select time, value from channel where id_sensor = '%s' ''' % ids)
-      for row in channel_query:
-        channel.append(dict(zip(ccolumn, row)))
+      sensor = db.getSpecificSensor(ids)
+      channel = db.getChannel('id_sensor', ids)
       key = {
-        'id_sensor' : squery[0][0],
-        'name'      : squery[0][1],
-        'unit'      : squery[0][2],
+        'id_sensor' : sensor[0]['Id Sensor'],
+        'name'      : sensor[0]['Name'],
+        'unit'      : sensor[0]['Unit'],
         'channel'   : channel
       }
       resp.body = json.dumps(key, indent = 2)
@@ -79,7 +67,6 @@ class Sensor:
     idu = authData[0]
     isadmin = authData[3]
 
-    key = []
     if req.content_type is None:
       resp.status = falcon.HTTP_400
       resp.body = 'Emtpy request body'
@@ -112,7 +99,7 @@ class Sensor:
       db.close()
       return
     try:
-      checking = db.check("select id_node from node where id_node = '%s'" % id_node)
+      checking = db.check('id_node', 'node', id_node)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Id node is invalid'
@@ -129,22 +116,22 @@ class Sensor:
       if 'id_hardware' in given:
         id_hardware = params['id_hardware']
         if id_hardware == '':
-          db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s',NULL)" % (name, unit, id_node))
+          db.addSensorNoHardware(name, unit, id_node)
           resp.status = falcon.HTTP_201
           resp.body = 'Success add new sensor'
           db.close()
           return
         try:
-          idhcheck = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+          idhcheck = db.check('id_hardware', 'hardware', id_hardware)
         except:
           resp.status = falcon.HTTP_400
           resp.body = 'Id hardware is invalid'
           db.close()
           return
         if idhcheck:
-          typecheck = db.check("select type from hardware where id_hardware = '%s' and lower(type) = 'sensor'" % id_hardware)
+          typecheck = db.sensorHwTypeCheck(id_hardware)
           if typecheck:
-            db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s','%s')" % (name, unit, id_node, id_hardware))
+            db.addSensor(name, unit, id_node, id_hardware)
             resp.status = falcon.HTTP_201
             resp.body = 'Success add new sensor'
           else:
@@ -154,7 +141,7 @@ class Sensor:
           resp.status = falcon.HTTP_400
           resp.body = 'Id hardware not exist'
       elif 'id_hardware' not in given:
-        db.commit("insert into sensor (name, unit, id_node, id_hardware) values ('%s','%s','%s',NULL)" % (name, unit, id_node))
+        db.addSensorNoHardware(name, unit, id_node)
         resp.status = falcon.HTTP_201
         resp.body = 'Success add new sensor'
     else:
@@ -184,7 +171,7 @@ class Sensor:
       return
     try: #antisipasi jika ada masukan id tidak sesuai dengan tipe data pada database
       ids = int(ids)
-      scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+      scheck = db.check('id_sensor', 'sensor', ids)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -195,9 +182,7 @@ class Sensor:
       resp.body = 'Id sensor not found'
       db.close()
       return
-    query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-    value = query[0]
-    id_user = value[0]
+    id_user = db.getSensorUserId(ids)
     if not isadmin:
       if(id_user != idu):
         resp.status = falcon.HTTP_403
@@ -233,7 +218,7 @@ class Sensor:
     idu = authData[0]
     isadmin = authData[3]
     try:
-      scheck = db.check("select * from sensor where id_sensor = '%s'" % ids)
+      scheck = db.check('id_sensor', 'sensor', ids)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -244,8 +229,7 @@ class Sensor:
       resp.body = 'Id sensor not found'
       db.close()
       return
-    query = db.select("select node.id_user from node left join sensor on sensor.id_node = node.id_node where id_sensor = '%s'" % ids)
-    id_user = query[0][0]
+    id_user = db.getSensorUserId(ids)
     if not isadmin:
       if(id_user != idu):
         resp.status = falcon.HTTP_403

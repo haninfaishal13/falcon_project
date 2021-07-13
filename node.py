@@ -33,7 +33,7 @@ class Node:
     idu = authData[0]
     isadmin = authData[3]
     try:
-      ncheck = db.check("select * from node where id_node = '%s'" % idn)
+      ncheck = db.check('id_node', 'node', idn)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -105,7 +105,7 @@ class Node:
 
     required = {'name', 'location'}
     missing = required - set(params.keys())
-    notgiven = set(params.keys()) - required
+    given = set(params.keys()) - required
     if missing:
       resp.status = falcon.HTTP_400
       resp.body = 'Missing parameter: {}'.format(missing)
@@ -120,7 +120,7 @@ class Node:
       resp.body = 'parameter mustn\'t empty'
       db.close()
       return
-    if 'id_hardware' in notgiven:
+    if 'id_hardware' in given:
       id_hardware = params['id_hardware']
       if id_hardware == '':
         resp.status = falcon.HTTP_400
@@ -128,7 +128,7 @@ class Node:
         db.close()
         return
       try:
-        checking1 = db.check("select id_hardware from hardware where id_hardware = '%s'" % id_hardware)
+        checking1 = db.check('id_hardware', 'hardware', id_hardware)
       except:
         resp.status = falcon.HTTP_400
         resp.body = 'Parameter is invalid'
@@ -139,16 +139,16 @@ class Node:
         resp.body = 'Id hardware not found'
         db.close()
         return
-      checking2 = db.check("select type from hardware where id_hardware = '%s' and (lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit')" % id_hardware)
+      checking2 = db.nodeHwTypeCheck(id_hardware)
       if not checking2:
         resp.status = falcon.HTTP_400
         resp.body = 'Hardware type not match, type should Microcontroller Unit or Single-Board Computer'
         db.close()
         return
-      db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', '%s', '%s')" % (node_name, location, id_hardware, id_user))
+      db.addNode(node_name, location, id_user, id_hardware)
 
-    elif 'id hardware' not in notgiven:
-      db.commit("insert into node(name, location, id_hardware, id_user) values ('%s','%s', NULL, '%s')" % (node_name, location, id_user))
+    elif 'id hardware' not in given:
+      db.addNodeNoHardware(node_name, location, id_user)
     resp.status = falcon.HTTP_201
     resp.body = 'Success add new node'
     db.close()
@@ -179,7 +179,7 @@ class Node:
       db.close()
       return
     try: #antisipasi jika input id node tidak sesuai dengan tipe data pada database
-      ncheck = db.check("select * from node where id_node = '%s'" % idn)
+      ncheck = db.check('id_node', 'node', idn)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -228,7 +228,7 @@ class Node:
     isadmin = authData[3]
 
     try: #antisipasi input id node tidak sesuai dengan tipe data pada database 
-      ncheck = db.check("select * from node where id_node = '%s'" % idn)
+      ncheck = db.check('id_node', 'node', idn)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -245,7 +245,7 @@ class Node:
       resp.body = 'You can\'t delete another user\'s data'
       db.close()
       return
-    checking = db.check("select * from node where id_node = '%s'" % idn)
+    checking = db.check('id_node', 'node', idn)
     if checking:
       db.commit("delete from node where id_node = '%s'" % idn)
       resp.body = 'Success delete node, id: {}'.format(idn)

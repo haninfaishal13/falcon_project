@@ -6,17 +6,8 @@ class Hardware:
   def on_get(self, req, resp):
     db = database()
     column = ('id_hardware','name', 'type', 'description')
-    results = []
-    node_result = []
-    sensor_result = []
-    
-    query = db.select("select id_hardware, name, type, description from hardware")
-    node = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'single-board computer' or lower(type) = 'microcontroller unit'")
-    sensor = db.select("select id_hardware, name, type, description from hardware where lower(type) = 'sensor'")
-    for row in node:
-        node_result.append(dict(zip(column, row)))
-    for row in sensor:
-        sensor_result.append(dict(zip(column, row)))
+    node_result = db.getNodeHardware()
+    sensor_result = db.getSensorHardware()
     
     output = {
         'node' : node_result,
@@ -35,40 +26,32 @@ class Hardware:
 
     results = []
     try:
-        idhcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
+        idhcheck = db.check('id_hardware', 'hardware', idh)
     except:
         resp.status = falcon.HTTP_400
         resp.body = 'Parameter is invalid'
         return
     if idhcheck:
-      hquery = db.select("select id_hardware, name, type, description from hardware where id_hardware = '%s'" 
-                            % idh)
-      hwcheck = db.check("select * from hardware where id_hardware = '%s' "
-                         "and (lower(type) = lower('microcontroller unit') "
-                         "or lower(type) = lower('single-board computer'))" % idh)
-      if hwcheck:
-        column = ('node name', 'node location')
-        nquery = db.select("select name, location from node where id_hardware = '%s'" % idh)
-        for row in nquery:
-          results.append(dict(zip(column, row)))
+      hquery = db.getSpecificHardware(idh)
+      nodecheck = db.nodeHwTypeCheck(idh)
+      sensorcheck = db.sensorHwTypeCheck(idh)
+      if nodecheck:
+        node = db.getNodeFromHardware(idh)
         key = {
-            "id_hardware"   : hquery[0][0],
-            "name"          : hquery[0][1],
-            "type"          : hquery[0][2],
-            "description"   : hquery[0][3],
-            "node"          : results
+            "id_hardware"   : hquery[0]['id_hardware'],
+            "name"          : hquery[0]['name'],
+            "type"          : hquery[0]['type'],
+            "description"   : hquery[0]['description'],
+            "node"          : node
         }
-      else:
-        column = ('sensor name', 'sensor unit')
-        squery = db.select("select name, unit from sensor where id_hardware = '%s'" % idh)
-        for row in squery:
-          results.append(dict(zip(column, row)))
+      elif sensorcheck:
+        sensor = db.getSensorFromHardware(idh)
         key = {
-            "id_hardware"   : hquery[0][0],
-            "name"          : hquery[0][1],
-            "type"          : hquery[0][2],
-            "description"   : hquery[0][3],
-            "sensor"          : results
+            "id_hardware"   : hquery[0]['id_hardware'],
+            "name"          : hquery[0]['name'],
+            "type"          : hquery[0]['type'],
+            "description"   : hquery[0]['description'],
+            "sensor"        : sensor
         }
       resp.body = json.dumps(key, indent = 2)
     else:
@@ -110,7 +93,7 @@ class Hardware:
     else:
       key.append(dict(zip(params.keys(), params.values())))
       if 'single-board computer' in tipe.lower() or 'microcontroller unit' in tipe.lower() or 'sensor' in tipe.lower():
-        db.commit("insert into hardware (name, type, description) values ('%s', '%s', '%s')" % (hwname, tipe, desc))
+        db.addHardware(hwname, tipe, desc)
         resp.body = 'Success add new hardware'
       else:
         resp.status = falcon.HTTP_400
@@ -126,7 +109,7 @@ class Hardware:
     id_user = authData[0]
     isadmin = authData[3]
     try:
-      hwcheck = db.check("select * from hardware where id_hardware = '%s'" % idh)
+      hwcheck = db.check('id_hardware', 'hardware', idh)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
@@ -209,7 +192,7 @@ class Hardware:
   def on_delete_id(self, req, resp, idh):
     db = database()
     try:
-      checking = db.check("select * from hardware where id_hardware = '%s'" % idh)
+      checking = db.check('id_hardware', 'hardware', idh)
     except:
       resp.status = falcon.HTTP_400
       resp.body = 'Parameter is invalid'
