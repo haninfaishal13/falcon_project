@@ -27,10 +27,9 @@ class User:
       db.close()
       return
     passHash = hashlib.sha256(params['password'].encode()).hexdigest()
-    ucehck = db.check("select username from user_person where username = '%s'" % params['username'])
-    ucheck = db.check("select '%s' from user_person where username = '%s'" % ('username',params['username']))
+    ucheck = db.customcheck("select '%s' from user_person where username = '%s'" % ('username',params['username']))
     if(ucheck):
-      passcheck = db.check("select password from user_person where password = '%s'" % passHash)
+      passcheck = db.customcheck("select password from user_person where password = '%s'" % passHash)
       if (passcheck): 
         resp.body = 'Logged in'
       else:  
