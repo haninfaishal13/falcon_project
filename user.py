@@ -31,7 +31,12 @@ class User:
     if(ucheck):
       passcheck = db.customcheck("select password from user_person where password = '%s'" % passHash)
       if (passcheck): 
-        resp.body = 'Logged in'
+        statuscheck = db.customcheck("select status from user_person where username = '%s' and status = 't'" % params['username'])
+        if statuscheck:
+          resp.body = 'Logged in'
+        else:
+          resp.status = falcon.HTTP_400
+          resp.body = 'Account is inactive, check email for activation'
       else:  
         resp.status = falcon.HTTP_400
         resp.body = 'Username not found or password incorrect'
@@ -78,7 +83,7 @@ class User:
         tokenOriginal = username + emailAddress + password
         passHash = hashlib.sha256(password.encode()).hexdigest()
         token = hashlib.sha256(tokenOriginal.encode()).hexdigest()
-        emailChecking = db.check('email', 'user_person', email)
+        emailChecking = db.check('email', 'user_person', emailAddress)
         usernameChecking = db.check('username', 'user_person', username)
         if not emailChecking and not usernameChecking:
           db.commit("insert into user_person (username, email, password, token) values ('%s','%s', '%s', '%s')" % (username, emailAddress, passHash, token))

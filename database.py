@@ -83,7 +83,7 @@ class database:
     conn = self.conn
     curr = self.curr
     node = []
-    column = ('node name', 'node location')
+    column = ('name', 'location')
     self.curr.execute("select name, location from node where id_hardware = '%s'" % idh)
     results = curr.fetchall()
     for row in results:
@@ -306,7 +306,7 @@ class Authorize:
 
   def sendEmail(self, id_user, username, emailAddress, token):
     server = smtplib.SMTP('smtp.gmail.com:587')
-    urlCode = "http://127.0.0.1:8000/user/activation?token="+token
+    urlCode = "http://192.168.100.105:5000/user/activation?token="+token
     email_content = """ 
     <html>              
      
